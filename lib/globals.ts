@@ -3,16 +3,19 @@ import type { Report } from './report';
 import type { Script } from './script';
 import type { Storage } from './storage';
 import type { BaseObject } from './base-object';
-import { getArgBoolean, uniqueId } from './base';
-import { Exchange } from './exchange';
+import type { CandlesBufferManager } from './candles';
+import type { Exchange } from './exchange';
+import { getArgBoolean } from './base';
 
-class StdGlobalVariables {
+class GlobalScope {
   private _strategy: Script = null;
   private _triggers: TriggerService = null;
   private _report: Report = null;
   private _events: EventEmitter = null;
   private _storage: Storage = null;
+  private _candlesBufferManager: CandlesBufferManager = null;
   private _isTradeAllowed = true;
+
   public exchange: Exchange = null;
 
   public balanceInfo = {};
@@ -35,18 +38,10 @@ class StdGlobalVariables {
   }
 
   public removeObject(object: BaseObject) {
-    if (this._objects[object.id]) {
-      //check is the same object
-      object['_checkIsTheSameObject_I1290876I'] = uniqueId(10);
-      if (object['_checkIsTheSameObject_I1290876I'] === this._objects[object.id]['_checkIsTheSameObject_I1290876I']) {
-        delete this._objects[object.id];
-      } else {
-        console.error(
-          'stdGlobalVariables::removeObject Object with id ' +
-            object.id +
-            'was not deleted (object is not the same in global._objects)',
-        );
-      }
+    if (this._objects[object.id] && this._objects[object.id] === object) {
+      delete this._objects[object.id];
+    } else {
+      console.error(`GlobalScope::removeObject Object with id ${object.id} not found`);
     }
   }
 
@@ -68,6 +63,18 @@ class StdGlobalVariables {
 
   get strategy() {
     return this._strategy;
+  }
+
+  set candlesBufferManager(manager: CandlesBufferManager) {
+    if (this._candlesBufferManager) {
+      throw new Error('CandlesBufferManager already exists');
+    }
+
+    this._candlesBufferManager = manager;
+  }
+
+  get candlesBufferManager() {
+    return this._candlesBufferManager;
   }
 
   set storage(storage: Storage) {
@@ -123,4 +130,4 @@ class StdGlobalVariables {
   }
 }
 
-export const globals = new StdGlobalVariables();
+export const globals = new GlobalScope();

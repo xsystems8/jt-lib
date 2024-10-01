@@ -58,7 +58,7 @@ const timeframeMapNumber = {
  * @param timeframe - timeframe in minutes (1, 5, 15, 60, 240, 1440, 10080, 43200)
  * @returns {*} ('1m', '5m', '15m', '1h', '4h', '1d', '1w', '1M')
  */
-export const convertTimeframeToString = (timeframe: string | number): string => {
+export const convertTimeframeToString = (timeframe: string | number): TimeFrame => {
   if (typeof timeframe === 'string') {
     return timeframeMapString[timeframe];
   }

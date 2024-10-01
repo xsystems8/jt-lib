@@ -17,7 +17,7 @@ export function timeCurrent() {
   if (isTester()) {
     return tms() ?? ARGS.startDate.getTime();
   } else {
-    return new Date().getTime();
+    return Date.now();
   }
 }
 

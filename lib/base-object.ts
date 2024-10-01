@@ -9,7 +9,7 @@ export class BaseObject {
   _isDestroyed = false;
   _listenersId: any = [];
   _created = currentTime();
-  version: string | number = '1.08';
+
   constructor(args: any = {}) {
     let idPrefix = args.idPrefix ?? '';
 

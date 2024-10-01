@@ -13,7 +13,7 @@ import { ReportText, TextOptions } from './widgets/report-text';
 import { error, log, getLogs, warningOnce, errorOnce } from '../log';
 import { BaseObject } from '../base-object';
 import { AggType, ExtendedReportChartOptions } from './types';
-import { BufferIndicatorItem } from '../indicators/types';
+import { BufferIndicatorItem } from '../indicator/types';
 import { BaseError } from '../Errors';
 
 /**
@@ -530,7 +530,7 @@ export class Report extends BaseObject {
   tvChartAddIndicator(indicatorName: string, description: string, data: BufferIndicatorItem[]) {
     const chartName = 'tvChartMain';
     if (!this.tvCharts[chartName]) {
-      this.tvCharts[chartName] = new TradingViewChart({ name: chartName, interval: 240 });
+      this.tvCharts[chartName] = new TradingViewChart({ name: chartName, interval: 1 });
     }
 
     this.tvCharts[chartName].addIndicator({ name: indicatorName, description, data });
@@ -539,7 +539,7 @@ export class Report extends BaseObject {
   tvChartAddOscillator(oscillatorName: string, description: string, data: BufferIndicatorItem[]) {
     const chartName = 'tvChartMain';
     if (!this.tvCharts[chartName]) {
-      this.tvCharts[chartName] = new TradingViewChart({ name: chartName, interval: 240 });
+      this.tvCharts[chartName] = new TradingViewChart({ name: chartName, interval: 1 });
     }
 
     this.tvCharts[chartName].addOscillator({ name: oscillatorName, description, data });

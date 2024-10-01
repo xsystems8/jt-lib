@@ -7,6 +7,7 @@ import { Storage } from '../storage';
 import { getArgBoolean, getArgString } from '../base';
 import { BaseError } from '../Errors';
 import { normalize } from '../utils/numbers';
+import { CandlesBufferManager } from '../candles';
 
 /**
  * This is a base class for all strategies with extended functionality.
@@ -28,6 +29,8 @@ export class Script extends BaseObject implements BaseScriptInterface {
   balanceFree: number;
   _testerStartRealTime: number;
   _testerEndRealTime: number;
+
+  isInitialized = false;
 
   constructor(args: GlobalARGS) {
     super(args);
@@ -78,9 +81,8 @@ export class Script extends BaseObject implements BaseScriptInterface {
     globals.triggers = new TriggerService({ idPrefix });
     globals.report = new Report({ idPrefix });
     globals.storage = new Storage({ idPrefix });
+    globals.candlesBufferManager = new CandlesBufferManager({ idPrefix });
   }
-
-  isInitialized = false;
 
   init = async () => {
     try {
@@ -242,6 +244,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
     let sec = normalize((this._testerEndRealTime - this._testerStartRealTime) / 1000, 0);
     log('Script:stop', `Tester spend ${min}:${sec}`, {}, true);
   };
+
   async runOnReportAction(action: string, payload: any) {
     try {
       await this.onReportAction(action, payload);
