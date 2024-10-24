@@ -36,7 +36,7 @@ export class TriggerService extends BaseObject implements TriggerServiceInterfac
     if (this.priceTriggers[symbol]) {
       return this.priceTriggers[symbol];
     } else {
-      this.createNewPriceTrigger(symbol);
+      return this.createNewPriceTrigger(symbol);
     }
   }
 

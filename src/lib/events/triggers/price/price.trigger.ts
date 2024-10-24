@@ -2,7 +2,7 @@ import { Trigger } from '../trigger';
 import { TriggerHandler, TriggerTask } from '../types';
 import { CreatePriceTaskParams, PriceTriggerDirection, PriceTriggerInterface, PriceTriggerTask } from './types';
 import { currentTime, currentTimeString } from '../../../utils/date-time';
-import { error, log, warning } from '../../../log';
+import { error, log, trace, warning } from '../../../log';
 import { globals } from '../../../globals';
 import { BaseObject } from '../../../base-object';
 import { BaseError } from '../../../Errors';
@@ -10,6 +10,8 @@ import { BaseError } from '../../../Errors';
 const MAX_INACTIVE_TASKS = 100;
 
 export class PriceTrigger extends Trigger implements PriceTriggerInterface {
+  sVersion = '2.1';
+  build = '10.10.11';
   private readonly _registeredHandlers = new Map<string, TriggerHandler>();
   private readonly upperPriceTasks = new Map<string, PriceTriggerTask>();
   private readonly lowerPriceTasks = new Map<string, PriceTriggerTask>();
@@ -29,6 +31,15 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
     let idPrefix = args?.idPrefix ?? args.symbol;
     super({ ...args, idPrefix });
     this.symbol = args.symbol;
+  }
+
+  debugInfo() {
+    return {
+      upperMinPrice: this.upperMinPrice,
+      lowerMaxPrice: this.upperMinPrice,
+
+      tasks: this.getActiveTasks(),
+    };
   }
 
   registerHandler(taskName: string, handler: Function, owner: BaseObject) {
@@ -77,6 +88,15 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
       direction = PriceTriggerDirection.Down;
     }
 
+    if (params.direction) {
+      if (params.direction === PriceTriggerDirection.Up || params.direction === PriceTriggerDirection.Down) {
+        direction = params.direction;
+      } else {
+        error('PriceTrigger::addTask', 'Wrong direction, possible values up or down', { params });
+        return undefined;
+      }
+    }
+
     const task: PriceTriggerTask = {
       ...params,
       symbol: this.symbol,
@@ -114,8 +134,10 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
     return id;
   }
 
+  currentPrice = 0;
   private async onTick() {
     const currentPrice = close(this.symbol);
+    this.currentPrice = currentPrice;
 
     if (currentPrice > this.lowerMaxPrice && currentPrice < this.upperMinPrice) return;
 
@@ -141,6 +163,8 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
     }
 
     this.clearInactive();
+
+    return { currentPrice, upperMinPrice: this.upperMinPrice, lowerMaxPrice: this.lowerMaxPrice };
   }
 
   private async executeTask(task: PriceTriggerTask) {
@@ -220,7 +244,7 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
         task.retry -= 1;
       }
 
-      await this.executeTask(task);
+      //await this.executeTask(task);
     }
   }
 
@@ -283,6 +307,39 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
   }
 
   private recalculateBorderPrices(direction?: PriceTriggerDirection) {
+    //TODO  working wrong with groups task (|| 1) not recalculate for task wich cacelled
+    if (!direction || direction === PriceTriggerDirection.Up || 1) {
+      this.lowerMaxPrice = null;
+      for (const task of this.lowerPriceTasks.values()) {
+        if (!task.isActive) continue;
+        if (!this.lowerMaxPrice) {
+          this.lowerMaxPrice = task.triggerPrice;
+          continue;
+        }
+        this.lowerMaxPrice = Math.max(this.lowerMaxPrice, task.triggerPrice);
+      }
+    }
+    if (!direction || direction === PriceTriggerDirection.Down || 1) {
+      this.upperMinPrice = null;
+      for (const task of this.upperPriceTasks.values()) {
+        if (!task.isActive) continue;
+        if (!this.upperMinPrice) {
+          this.upperMinPrice = task.triggerPrice;
+          continue;
+        }
+        this.upperMinPrice = Math.min(this.upperMinPrice, task.triggerPrice);
+      }
+    }
+
+    // //upperMinPrice lowerMaxPrice
+    // trace('PriceTrigger::recalculateBorderPrices', 'Prices recalculated', {
+    //   upperMinPrice: this.upperMinPrice,
+    //   lowerMaxPrice: this.lowerMaxPrice,
+    //   tasks: this.getActiveTasks(),
+    //   direction: direction + '',
+    // });
+  }
+  private recalculateBorderPricesA(direction?: PriceTriggerDirection) {
     if (!direction) {
       for (const task of this.lowerPriceTasks.values()) {
         this.lowerMaxPrice = Math.max(this.lowerMaxPrice, task.triggerPrice);
@@ -306,7 +363,6 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
       }
     }
   }
-
   private clearInactive() {
     if (this.inactiveTasks.size < MAX_INACTIVE_TASKS) return;
 
@@ -336,6 +392,10 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
         this.cancelTask(task.id);
         warning('PriceTrigger::afterRestore', 'Task with callback was canceled', { task });
       }
+    }
+
+    if (!this._eventListenerId) {
+      this._eventListenerId = globals.events.subscribeOnTick(this.onTick, this, this.symbol);
     }
   }
 }

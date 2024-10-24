@@ -1,5 +1,5 @@
 import { ReportTable, TableRow } from './widgets/report-table';
-import { ReportChart, ReportChartOptions } from './widgets/report-chart';
+import { ChartType, ReportChart, ReportChartOptions } from './widgets/report-chart';
 import { ReportCard, ReportCardParams } from './widgets/report-card';
 import {
   AddShapeParams,
@@ -10,11 +10,12 @@ import {
 } from './widgets/report-tv';
 import { ReportActionButton } from './widgets/report-action-button';
 import { ReportText, TextOptions } from './widgets/report-text';
-import { error, log, getLogs, warningOnce, errorOnce } from '../log';
+import { error, errorOnce, getLogs, log, logOnce, warningOnce } from '../log';
 import { BaseObject } from '../base-object';
 import { AggType, ExtendedReportChartOptions } from './types';
 import { BufferIndicatorItem } from '../indicator/types';
 import { BaseError } from '../Errors';
+import { deleteObject } from '../utils/objects';
 
 /**
  * Report - provide functionality for create report of trading strategy. Report can be viewed in web interface.
@@ -59,17 +60,13 @@ export class Report extends BaseObject {
   isLogToReport = true;
 
   lastTimeUpdate = 0;
-
+  chartCoinsBasket = new ReportChart('Coins Basket', { chartType: ChartType.Line, aggPeriod: 24 * 60 * 60 * 1000 }); // 4 hours
   constructor(args) {
     super(args);
   }
 
   setLayoutIndex(type: LayoutInfoObjType, name: string, index: number = undefined) {
-    if (index > this._layoutIterator) this._layoutIterator = index + 100;
-    if (index === undefined) {
-      this._layoutIterator = 100;
-      index = this._layoutIterator;
-    }
+    if (!index) index = this._layoutIterator = this._layoutIterator + 100;
 
     if (!this._layoutIAllowedTypes.includes(type)) {
       throw new BaseError('Report::setLayoutIndex: type should be table, chart, text or tvChart', {
@@ -94,18 +91,18 @@ export class Report extends BaseObject {
     delete this._layoutIndexes[key];
   }
 
-  async updateReportByLayoutIndex() {
-    let ReportObj: LayoutInfo[] = Object.values(this._layoutIndexes).sort((a, b) => a.index - b.index);
+  async updateReportByLayoutIndex(args = {}) {
+    // sort this._layoutIndexes[key].index by index
+    let ReportObjects: LayoutInfo[] = Object.values(this._layoutIndexes).sort((a, b) => a.index - b.index);
+    //TODO  delete symbols from reportData
     let reportData: ReportData = {
       id: getArtifactsKey(),
       symbol: '',
       blocks: [],
     };
-
+    let objNotExists = [];
     //sort by index
     try {
-      let objNotExists = [];
-
       if (this.title) {
         reportData.blocks.push(new ReportText(this.title, 'h1', 'center').prepareDataToReport());
       }
@@ -114,7 +111,7 @@ export class Report extends BaseObject {
         reportData.blocks.push(new ReportText(this.description, 'subtitle1', 'center').prepareDataToReport());
       }
 
-      for (let objInfo of ReportObj) {
+      for (let objInfo of ReportObjects) {
         switch (objInfo.type) {
           case 'table':
             let obj = this.tables[objInfo.name];
@@ -159,9 +156,9 @@ export class Report extends BaseObject {
         }
       }
 
-      if (objNotExists.length > 0) {
-        errorOnce('report.updateReportByLayoutIndex', 'Report objects not exists', { objNotExists });
-      }
+      // if (objNotExists.length > 0) {
+      //   logOnce('report.updateReportByLayoutIndex', 'Report objects not exists', { objNotExists });
+      // }
 
       if (this.isLogToReport) {
         let logs = getLogs('error');
@@ -226,13 +223,19 @@ export class Report extends BaseObject {
           name: 'Optimization results',
           data: opResults,
         });
-        let profitChart = this.getChartByName('Profit/Drawdown');
 
-        reportData.blocks.push(await profitChart.prepareDataToOptimizer());
+        if (args['isChartOptimazer']) {
+          reportData.blocks.push(await this.chartCoinsBasket.prepareDataToOptimizer());
+        }
       }
     } catch (e) {
       error(e);
     }
+    logOnce('Report::updateReportByLayoutIndex', 'Report Objects', {
+      ReportObjects,
+
+      objNotExists: objNotExists,
+    });
     await updateReport(reportData);
   }
 
@@ -261,18 +264,22 @@ export class Report extends BaseObject {
 
   addTable(tableName: string, table: ReportTable) {
     this.tables[tableName] = table;
+    this.setLayoutIndex('table', tableName);
   }
 
   addText(textName: string, text: ReportText) {
     this.texts[textName] = text;
+    this.setLayoutIndex('text', textName);
   }
 
   addChart(chartName: string, chart: ReportChart) {
     this.charts[chartName] = chart;
+    this.setLayoutIndex('chart', chartName);
   }
 
   addTVChart(chartName: string, chart: TradingViewChart) {
     this.tvCharts[chartName] = chart;
+    this.setLayoutIndex('tvChart', chartName);
   }
 
   addActionButton(actionButtonName: string, actionButton: ReportActionButton) {
@@ -371,26 +378,6 @@ export class Report extends BaseObject {
     if (!this.texts[textName]) this.createText(textName, text, textOptions);
     else this.texts[textName].setText(text);
   }
-
-  /**
-   * Add or update row in table widget in report. Max rows specified report-table.ts:MAX_ROWS (default: 100)
-   * @param tableName - name of table widget
-   * @param data - data to insert or update by idField. format: [{id: 1, name: 'test'}, {id: 2, name: 'test2'} ]
-   * @param idField - field name to use as id. Default: 'id'
-   * @returns void
-   * @example
-   *
-   * // TestTable table example
-   * report.tableUpdate('TestTable', [{id: 1, name: 'test'}, {id: 2, name: 'test2'} ]);
-   * report.tableUpdate('TestTable', {id: 1, name: 'test'}, 'id'); //update row with id=1
-   * report.tableUpdate('TestTable', {id: 3, name: 'test3'}, 'id'); //insert row with id=3
-   *
-   * // Orders table example
-   * report.tableUpdate('Orders', await getOrders());
-   *
-   * //Positions table example
-   * report.tableUpdate('Positions', await getPositions());
-   */
 
   createTable(tableName: string) {
     if (this.tables[tableName]) return;
@@ -557,11 +544,17 @@ export class Report extends BaseObject {
 
   dropActionButton(action: string) {
     delete this.actionButtons[action];
+
     this.deleteLayoutIndex('actionButton', action);
   }
 
+  clearTable(tableName: string) {
+    if (this.tables[tableName]) {
+      this.tables[tableName].clear();
+    }
+  }
   dropTable(tableName: string) {
-    delete this.tables[tableName];
+    error('Report::dropTable', 'not use this -> use clear', tableName);
     this.deleteLayoutIndex('table', tableName);
   }
 

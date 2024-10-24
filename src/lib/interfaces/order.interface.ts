@@ -24,7 +24,7 @@ namespace OrderTypes {
     reduceOnly?: boolean;
     stopType?: string;
     realId?: string;
-    ownPosId?: string;
+    emulated?: boolean;
   }
 
   export type OrderType = 'market' | 'limit';

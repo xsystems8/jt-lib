@@ -25,4 +25,6 @@ namespace PositionTypes {
     hedged?: boolean;
     percentage?: number;
   }
+
+  export type PositionSide = 'long' | 'short';
 }

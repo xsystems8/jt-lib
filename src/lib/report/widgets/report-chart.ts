@@ -1,7 +1,8 @@
-import { currentTime } from '../../utils/date-time';
+import { currentTime, timeToString } from '../../utils/date-time';
 import { error, log } from '../../log';
 import { AggType } from '../types';
 import { ReportWidget } from './report-widget';
+import { globals } from '../../globals';
 
 export class ReportChart extends ReportWidget {
   buffer;
@@ -16,12 +17,9 @@ export class ReportChart extends ReportWidget {
   isNewDotsReady = false;
   lastXValue = 0;
 
-  private readonly chartType: ChartType = ChartType.Line;
+  chartType: ChartType = ChartType.Line;
 
-  constructor(
-    private readonly name: string,
-    options?: ReportChartOptions,
-  ) {
+  constructor(private readonly name: string, options?: ReportChartOptions) {
     super();
     this.buffer = {};
     this.lines = {};
@@ -78,9 +76,9 @@ export class ReportChart extends ReportWidget {
     }
 
     let pointInfo = this.buffer[lineName];
-    if (pointInfo.lastX === currentTime()) {
-      return;
-    }
+    // if (pointInfo.lastX === currentTime()) {
+    //   return;
+    // }
 
     pointInfo.sum += value;
     pointInfo.cnt++;
@@ -178,23 +176,114 @@ export class ReportChart extends ReportWidget {
   };
 
   //TODO make additional class for optimizer report
+
   prepareDataToOptimizer = async (): ChartDataReportBlock => {
-    if (!this.lines['last_Profit']) {
+    if (!this.lines['max_Profit']) {
       error('ReportChart::prepareDataToOptimize', 'No profit line in chart', { lines: Object.keys(this.lines) });
-      return;
+      return [];
     }
 
-    if (!this.lines['last_Drawdown']) {
+    if (!this.lines['min_Drawdown']) {
       error('ReportChart::prepareDataToOptimize', 'No Drawdown line in chart', { lines: Object.keys(this.lines) });
-      return;
+      return [];
     }
+
+    let startTime = ARGS.startDate.getTime();
+
+    //need end on the month end
+    let endTime = new Date(ARGS.endDate.getFullYear(), ARGS.endDate.getMonth() + 1, 0).getTime();
+    let step = 1000 * 60 * 60 * 24; // 1 day
 
     let result = {};
-    // for time - this.x
-    for (let i = 0; i < this.x.length; i++) {
-      let time = this.x[i];
-      result[time] = { profit: this.lines['last_Profit'][i], drawdown: this.lines['last_Drawdown'][i] };
+    let time = 0;
+
+    let prevTime = 0;
+    // let oneDay = 1000 * 60 * 60 * 24;
+    // let today = Math.floor(tms() / oneDay) * oneDay; //today 00:00
+    let optimizerChartData = {};
+
+    time = startTime;
+    let length = Math.floor((endTime - startTime) / step);
+    for (let i = 0; i < length + 1; i++) {
+      time = Math.floor(time / step) * step; //today 00:00
+      optimizerChartData[time] = { profit: 0, drawdown: 0, isChanged: false };
+      time += step;
     }
+
+    let chart = new ReportChart('Optimizer profit');
+    globals.report.dropChart('Optimizer profit');
+    for (let i = 0; i < this.x.length; i++) {
+      time = this.x[i];
+      result[time] = { profit: this.lines['max_Profit'][i], drawdown: this.lines['min_Drawdown'][i] };
+
+      let roundTime = Math.floor(time / step) * step;
+
+      if (optimizerChartData[roundTime]) {
+        optimizerChartData[roundTime] = {
+          profit: this.lines['max_Profit'][i],
+          drawdown: this.lines['min_Drawdown'][i],
+          isChanged: true,
+        };
+
+        chart.addPoint('max_Profit', roundTime, this.lines['max_Profit'][i]);
+        chart.addPoint('min_Drawdown', roundTime, this.lines['min_Drawdown'][i]);
+
+        // let before1day = Math.floor((time - step) / step) * step;
+        // if (optimizerChartData[before1day].isChanged === false) {
+        //   optimizerChartData[before1day] = {
+        //     profit: this.lines['max_Profit'][i],
+        //     drawdown: this.lines['min_Drawdown'][i],
+        //     isChanged: true,
+        //   };
+        // }
+      }
+
+      prevTime = time;
+    }
+    globals.report.addChart('Optimizer profit', chart);
+    globals.report.setLayoutIndex('chart', 'Optimizer profit', 1);
+    let cntDodts = 0;
+    let cntNotChanged = 0;
+    if (1) {
+      let profit = 0;
+      let drawdown = 0;
+      time = startTime;
+
+      for (let i = 0; i < length + 1; i++) {
+        let roundTime = Math.floor(time / step) * step;
+
+        if (optimizerChartData[roundTime]) {
+          cntDodts++;
+          time = Math.floor(time / step) * step; //today 00:00
+
+          let cValue = optimizerChartData[roundTime];
+
+          if (cValue.isChanged === false) {
+            cntNotChanged++;
+            optimizerChartData[roundTime] = { profit: profit, drawdown: drawdown, isChanged: true };
+          }
+          profit = cValue.profit;
+          drawdown = cValue.drawdown;
+
+          time += step;
+          if (time > tms()) break;
+        }
+      }
+    }
+    log(
+      'ReportChart::prepareDataToOptimizer',
+      'Result',
+      {
+        cntResult: Object.keys(result).length,
+        cntResultChart: Object.keys(optimizerChartData).length,
+        lastTime: timeToString(time),
+        length: length,
+        cntDodts,
+        cntNotChanged,
+      },
+      true,
+    );
+
     let orders = await getOrders(ARGS.symbol);
 
     let volumeUsd = 0;
@@ -203,6 +292,7 @@ export class ReportChart extends ReportWidget {
         volumeUsd += order.price * order.amount;
       }
     }
+
     return {
       type: 'optimizer_coins_basket',
       name: this.name,
@@ -210,7 +300,8 @@ export class ReportChart extends ReportWidget {
       workingBalance: 1000,
       volumeUsd: volumeUsd,
       ordersCount: orders.length,
-      profitChart: result,
+      //profitChart: result,
+      profitChart: optimizerChartData,
       data: {},
     };
   };
@@ -220,6 +311,7 @@ export interface ReportChartOptions {
   maxPoints?: number;
   aggPeriod?: number;
   chartType?: ChartType;
+  layoutIndex?: number;
 }
 
 export enum ChartType {

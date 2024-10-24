@@ -23,34 +23,36 @@ declare global {
 
   const ARGS: GlobalARGS;
 
-  type Tick = TickTypes.Tick;
-  type Order = OrderTypes.Order;
-  type OrderType = OrderTypes.OrderType;
-  type OrderSide = OrderTypes.OrderSide;
+  export type Tick = TickTypes.Tick;
+  export type Order = OrderTypes.Order;
+  export type OrderType = OrderTypes.OrderType;
+  export type OrderSide = OrderTypes.OrderSide;
 
-  type Candle = CandleTypes.Candle;
-  type OHLC = CandleTypes.OHLC;
+  export type Candle = CandleTypes.Candle;
+  export type OHLC = CandleTypes.OHLC;
 
-  type TimeFrame = '1m' | '5m' | '15m' | '1h' | '1d';
+  export type TimeFrame = '1m' | '5m' | '15m' | '1h' | '1d';
 
-  type ReportData = ReportTypes.ReportData;
-  type TableDataReportBlock = ReportTypes.TableDataReportBlock;
-  type CardDataReportBlock = ReportTypes.CardDataReportBlock;
-  type ChartDataReportBlock = ReportTypes.ChartDataReportBlock;
-  type TVChartDataReportBlock = ReportTypes.TVChartDataReportBlock;
-  type TextReportBlock = ReportTypes.TextReportBlock;
-  type OptimizerResultsReportBlock = ReportTypes.OptimizerResultsReportBlock;
+  export type ReportData = ReportTypes.ReportData;
+  export type TableDataReportBlock = ReportTypes.TableDataReportBlock;
+  export type CardDataReportBlock = ReportTypes.CardDataReportBlock;
+  export type ChartDataReportBlock = ReportTypes.ChartDataReportBlock;
+  export type TVChartDataReportBlock = ReportTypes.TVChartDataReportBlock;
+  export type TextReportBlock = ReportTypes.TextReportBlock;
+  export type OptimizerResultsReportBlock = ReportTypes.OptimizerResultsReportBlock;
 
-  type Position = PositionTypes.Position;
+  export type Position = PositionTypes.Position;
+  export type PositionSide = PositionTypes.PositionSide;
 
-  type SymbolInfo = SymbolTypes.Symbol;
+  export type SymbolInfo = SymbolTypes.Symbol;
 
-  enum ReportBlockType {
+  export enum ReportBlockType {
     TRADING_VIEW_CHART = 'trading_view_chart',
     DRAWDOWN_CHART = 'drawdown_chart',
     TABLE = 'table',
     CHART = 'chart',
     CARD = 'card',
+    ACTION_BUTTON = 'action_button',
   }
 
   /**
@@ -75,13 +77,13 @@ declare global {
     iterator: number;
 
     init: () => Promise<void>;
-    runOnTick: (data: Tick[]) => Promise<void> | void;
-    runTickEnded: (data: Tick[]) => Promise<void> | void;
+    runOnTick: (data: Tick) => Promise<void> | void;
+    runTickEnded: (data: Tick) => Promise<void> | void;
     runOnTimer: () => Promise<void> | void;
     runOnOrderChange: (data: Order[]) => Promise<void> | void;
     runOnError: (e: any) => Promise<void | never> | never | void;
     runArgsUpdate: (args: GlobalARGS) => Promise<void> | void;
-    onTick: (data: Tick[]) => Promise<void> | void;
+    onTick: (data: Tick) => Promise<void> | void;
     onTimer: () => Promise<void> | void;
     onOrderChange: (order: Order) => Promise<void> | void;
     onArgsUpdate: (args: GlobalARGS) => Promise<void> | void;
@@ -240,7 +242,7 @@ declare global {
    * }
    *
    */
-  function getPositions(symbols?: string[]): Promise<Position[]>;
+  function getPositions(symbols?: string[], options = {}): Promise<Position[]>;
 
   /**
    * getBalance  - return balance for current script
@@ -269,6 +271,36 @@ declare global {
    * }
    */
   function getOrders(symbol: string, since = 0, limit = 500, params: any = undefined): Promise<Order[]>;
+
+  /**
+   * getOpenOrders - return array of orders for symbol
+   * @param symbol - symbol name spot (BTC/USDT) or futures (BTC/USDT:USDT)
+   * @param since - start time of the orders (timestamp)
+   * @param limit - limit of the orders
+   * @param params - additional params
+   * @returns {Promise<Order[]>}
+   * @example:
+   * let orders = await getOpenOrders('BTC/USDT', 0, 10);
+   * for (let order of orders) {
+   *  // do something
+   * }
+   */
+  function getOpenOrders(symbol: string, since = 0, limit = 500, params: any = undefined): Promise<Order[]>;
+
+  /**
+   * getClosedOrders - return array of orders for symbol
+   * @param symbol - symbol name spot (BTC/USDT) or futures (BTC/USDT:USDT)
+   * @param since - start time of the orders (timestamp)
+   * @param limit - limit of the orders
+   * @param params - additional params
+   * @returns {Promise<Order[]>}
+   * @example:
+   * let orders = await getClosedOrders('BTC/USDT', 0, 10);
+   * for (let order of orders) {
+   *  // do something
+   * }
+   */
+  function getClosedOrders(symbol: string, since = 0, limit = 500, params: any = undefined): Promise<Order[]>;
 
   /**
    * getOrder - return order by id for symbol

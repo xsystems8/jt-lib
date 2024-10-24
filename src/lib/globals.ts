@@ -3,8 +3,9 @@ import type { Report } from './report';
 import type { Script } from './script';
 import type { Storage } from './storage';
 import type { BaseObject } from './base-object';
-import type { CandlesBufferManager } from './candles';
+import type { CandlesBufferService } from './candles';
 import type { Exchange } from './exchange';
+import { Indicators } from './indicator';
 import { getArgBoolean } from './base';
 
 class GlobalScope {
@@ -13,7 +14,8 @@ class GlobalScope {
   private _report: Report = null;
   private _events: EventEmitter = null;
   private _storage: Storage = null;
-  private _candlesBufferManager: CandlesBufferManager = null;
+  private _candlesBufferService: CandlesBufferService = null;
+  private _indicators: Indicators = null;
   private _isTradeAllowed = true;
 
   public exchange: Exchange = null;
@@ -26,6 +28,7 @@ class GlobalScope {
   params = {};
   logs = {};
   errorCount = 0;
+  consoleLogCount = 0;
   lastErrorTime = 0;
   public userData: Map<string, any> = new Map();
 
@@ -65,16 +68,28 @@ class GlobalScope {
     return this._strategy;
   }
 
-  set candlesBufferManager(manager: CandlesBufferManager) {
-    if (this._candlesBufferManager) {
-      throw new Error('CandlesBufferManager already exists');
+  set candlesBufferService(service: CandlesBufferService) {
+    if (this._candlesBufferService) {
+      throw new Error('CandlesBufferService already exists');
     }
 
-    this._candlesBufferManager = manager;
+    this._candlesBufferService = service;
   }
 
-  get candlesBufferManager() {
-    return this._candlesBufferManager;
+  get candlesBufferService() {
+    return this._candlesBufferService;
+  }
+
+  set indicators(indicators: Indicators) {
+    if (this._indicators) {
+      throw new Error('indicators already exists');
+    }
+
+    this._indicators = indicators;
+  }
+
+  get indicators() {
+    return this._indicators;
   }
 
   set storage(storage: Storage) {

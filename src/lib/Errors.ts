@@ -1,7 +1,6 @@
 import { currentTimeString } from './utils/date-time';
 import { getArgBoolean, uniqueId } from './base';
 import { globals } from './globals';
-import { log } from './log';
 
 export class BaseError extends Error {
   allContext: any[] = [];
@@ -30,10 +29,6 @@ export class BaseError extends Error {
 
     if (this.internalStack.length === 0) {
       this.internalStack = new Error().stack.split('\n');
-
-      if (getArgBoolean('isDebug', false)) {
-        log('BaseError', 'internalStack --->', { stack, internalStack: this.internalStack }, true);
-      }
     }
   }
 

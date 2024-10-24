@@ -22,7 +22,7 @@ export class RelativeStrengthIndex extends BaseIndicator {
   private positiveBuffer = [];
   private negativeBuffer = [];
 
-  onCalculate() {
+  protected onCalculate() {
     const candles = this.candlesBuffer.getCandles();
 
     if (this.lastTimeUpdated >= this.candlesBuffer.getLastTimeUpdated()) return;

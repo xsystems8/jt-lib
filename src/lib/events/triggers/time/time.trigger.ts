@@ -1,11 +1,12 @@
 import { globals } from '../../../globals';
 import { Trigger } from '../trigger';
-import { error, log } from '../../../log';
+import { error, log, warning } from '../../../log';
 import { currentTime, currentTimeString } from '../../../utils/date-time';
 import { CreateTimeTaskParams, TimeTriggerTask } from './types';
 import { BaseObject } from '../../../base-object';
 import { BaseError } from '../../../Errors';
 import { TriggerHandler, TriggerTask } from '../types';
+import { validateNumbersInObject } from '../../../utils/numbers';
 
 const MAX_INACTIVE_TASKS = 100;
 
@@ -14,7 +15,7 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
   private readonly activeTasks = new Map<string, TimeTriggerTask>();
   private readonly inactiveTasks = new Map<string, TimeTriggerTask>();
 
-  private eventListenerId: string | null = null;
+  private _eventListenerId: string | null = null;
   private nextId: number = 1;
 
   private minTriggerTime: number;
@@ -48,6 +49,13 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
   addTask(params: CreateTimeTaskParams): string {
     const { triggerTime } = params;
 
+    if (!validateNumbersInObject({ triggerTime: triggerTime })) {
+      error(TimeTrigger.name, 'Error adding a task. The trigger time must be a number', {
+        args: arguments,
+      });
+      return null;
+    }
+
     if (triggerTime <= currentTime()) {
       error(TimeTrigger.name, 'Error adding a task. The trigger time cannot be less than the current time', {
         args: arguments,
@@ -72,8 +80,8 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
       result: null,
     });
 
-    if (!this.eventListenerId) {
-      this.eventListenerId = globals.events.subscribe('onTick', this.onTick, this);
+    if (!this._eventListenerId) {
+      this._eventListenerId = globals.events.subscribe('onTick', this.onTick, this);
     }
 
     log('TimeTrigger::addTask', 'New task registered', { task: params });
@@ -102,11 +110,13 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
     }, null);
 
     if (!this.minTriggerTime) {
-      globals.events.unsubscribeById(this.eventListenerId);
-      this.eventListenerId = null;
+      globals.events.unsubscribeById(this._eventListenerId);
+      this._eventListenerId = null;
     }
 
     this.clearInactive();
+
+    return { minTriggerTime: this.minTriggerTime, activeTasks: activeTasks.length };
   }
 
   private async executeTask(task: TimeTriggerTask) {
@@ -159,7 +169,7 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
         task.retry -= 1;
       }
 
-      await this.executeTask(task);
+      // await this.executeTask(task);
     }
   }
 
@@ -221,5 +231,18 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
       }
     });
     this.inactiveTasks.clear();
+  }
+
+  afterRestore() {
+    for (let task of this.getActiveTasks()) {
+      if (task.callback) {
+        this.cancelTask(task.id);
+        warning('PriceTrigger::afterRestore', 'Task with callback was canceled', { task });
+      }
+    }
+    //TODO make a better algorithm for restoring tasks from storage
+    if (!this._eventListenerId) {
+      this._eventListenerId = globals.events.subscribe('onTick', this.onTick, this);
+    }
   }
 }

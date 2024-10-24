@@ -24,7 +24,7 @@ export class CandlesBuffer extends BaseObject {
 
   constructor(options: CandlesBufferOptions) {
     super();
-    const { timeframe, maxBufferLength = 100, symbol, preloadCandlesCount = 30 } = options;
+    const { timeframe, maxBufferLength = 1000, symbol, preloadCandlesCount = 200 } = options;
     this.timeframeString = convertTimeframeToString(timeframe);
     this.timeframeNumber = convertTimeframeToNumber(timeframe);
 
@@ -41,12 +41,12 @@ export class CandlesBuffer extends BaseObject {
     this.buffer = [];
   }
 
-  async init() {
+  async initialize() {
     if (this.isInitialized) return;
 
     globals.events.subscribe('onBeforeTick', this.updateBuffer, this);
 
-    const startTimestamp = isTester() ? ARGS.startDate.getTime() : Date.now();
+    const startTimestamp = isTester() ? (tms() ?? ARGS.startDate.getTime()) : Date.now();
     const startTime = startTimestamp - this.preloadCandlesCount * this.timeframeNumber * 1000 * 60;
 
     try {
@@ -97,6 +97,7 @@ export class CandlesBuffer extends BaseObject {
         high: !!prevCandle ? Math.max(prevCandle.close, currentPrice) : currentPrice,
         low: !!prevCandle ? Math.min(prevCandle.close, currentPrice) : currentPrice,
         close: currentPrice,
+        volume: 0,
       };
       return;
     }
@@ -108,6 +109,7 @@ export class CandlesBuffer extends BaseObject {
         high: currentPrice,
         low: currentPrice,
         close: currentPrice,
+        volume: 0,
       });
     } else {
       this.updateCurrentCandle(currentPrice);
@@ -117,6 +119,10 @@ export class CandlesBuffer extends BaseObject {
   private addCandle(candle: Candle) {
     this.buffer.push(candle);
     this.currentCandle = candle;
+  }
+
+  getCandle(shift: number): Candle {
+    return this.buffer[this.buffer.length - 1 - shift];
   }
 
   private updateCurrentCandle(currentPrice: number) {

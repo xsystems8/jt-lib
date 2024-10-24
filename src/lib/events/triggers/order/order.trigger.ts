@@ -3,7 +3,7 @@ import { Trigger } from '../trigger';
 import { TriggerHandler, TriggerTask } from '../types';
 import { currentTime, currentTimeString } from '../../../utils/date-time';
 import { globals } from '../../../globals';
-import { error, log } from '../../../log';
+import { error, log, warning } from '../../../log';
 import { BaseError } from '../../../Errors';
 import { BaseObject } from '../../../base-object';
 
@@ -202,5 +202,18 @@ export class OrderTrigger extends Trigger implements OrderTriggerInterface {
       }
     });
     this.inactiveTasks.clear();
+  }
+
+  afterRestore() {
+    for (let task of this.getActiveTasks()) {
+      if (task.callback) {
+        this.cancelTask(task.id);
+        warning('PriceTrigger::afterRestore', 'Task with callback was canceled', { task });
+      }
+    }
+
+    if (!this.eventListenerId) {
+      this.eventListenerId = globals.events.subscribe('onOrderChange', this.onOrderChange, this);
+    }
   }
 }

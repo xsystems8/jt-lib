@@ -1,32 +1,47 @@
 import { BaseError } from '../Errors';
+import { warning } from '../log';
 
 const DEFAULT_TOLERANCE = 0.00000000000001;
 
 //TODO  change all validate function to return true | false.  NOT a throw error
-export const validateNumbers = (...args: any[]): void => {
+export const validateNumbers = (...args: any[]): boolean => {
   let i = 0;
   for (let arg of args) {
-    i++;
-    if (typeof arg !== 'number' || isNaN(arg)) {
-      throw new BaseError('All arguments must be valid numbers and not NaN. Wrong argument  № ' + i);
+    if (!isRealNumber(arg)) {
+      i++;
+      warning('validateNumbers', 'All arguments must be valid numbers and not NaN. Wrong argument  № ' + i, {
+        type: typeof arg,
+        value: arg,
+        isUndefined: arg === undefined,
+        isNaN: isNaN(arg),
+      });
     }
   }
+  if (i > 0) return false;
+  return true;
 };
 
-export const validateNumbersInObject = (obj: any): void => {
+export const validateNumbersInObject = (obj: any): boolean => {
   if (typeof obj !== 'object') {
     throw new BaseError('The argument must be an object');
   }
 
   let wrongKeys = [];
   for (let key in obj) {
-    if (typeof obj[key] === 'number' && isNaN(obj[key])) {
-      wrongKeys.push(key);
+    if (!isRealNumber(obj[key])) {
+      wrongKeys.push({ key: key, value: obj[key], vType: typeof obj[key] });
     }
   }
 
-  if (wrongKeys.length > 0)
-    throw new BaseError('All values of the object must be valid numbers and not NaN. Wrong keys: ', wrongKeys);
+  if (wrongKeys.length > 0) {
+    warning('validateNumbersInObject', 'All values of the object must be valid numbers. Wrong keys: ', wrongKeys);
+    return false;
+  }
+  return true;
+};
+
+export const isRealNumber = (number: number) => {
+  return typeof number === 'number' && isFinite(number);
 };
 
 /**
@@ -101,6 +116,12 @@ export const isLess = (a: number, b: number): boolean => {
   return b - a > DEFAULT_TOLERANCE;
 };
 
+export const isBetween = (number: number, min: number, max: number): boolean => {
+  if (validateNumbersInObject({ number, min, max }) === false) {
+    throw new BaseError('isBetween: at least one of argument is NaN', { number, min, max });
+  }
+  return number >= min && number <= max;
+};
 export const percentDifference = (a: number, b: number, isAbs = true): number => {
   if (isNaN(a) || isNaN(b)) {
     throw new BaseError('percentDifference: at least one of argument is NaN', { a, b });

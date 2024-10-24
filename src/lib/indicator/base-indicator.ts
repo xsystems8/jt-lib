@@ -29,7 +29,7 @@ export class BaseIndicator extends BaseObject {
   }
 
   getValue(shift = 0) {
-    return this.buffer[this.buffer.length - shift].value;
+    return this.buffer[this.buffer.length - shift]?.value;
   }
 
   getIndicatorValues() {

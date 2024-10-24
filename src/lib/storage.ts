@@ -26,7 +26,7 @@ export class Storage extends BaseObject {
 
   isDebug = false;
 
-  constructor(args) {
+  constructor(args: any = {}) {
     super(args);
     try {
       let { exceptProps, classes } = args;
@@ -187,11 +187,10 @@ export class Storage extends BaseObject {
           className = objProps[propName]._c;
 
           if (obj[propName]?.constructor?.name === className) {
-            this.debug('Storage::applyState', 'class = ' + className + '  - FILED', { propName });
           } else {
             if (this._baseClasses[className]) {
               obj[propName] = new this._baseClasses[className]();
-              this.debug('Storage::applyState', 'class = ' + className + '  - FILED', { propName });
+              this.debug('Storage::applyState', 'class = ' + className + '  - CREATED', { propName });
             } else {
               warning(
                 'Storage::applyState',
@@ -203,9 +202,11 @@ export class Storage extends BaseObject {
               );
               continue;
             }
-            obj[propName] = this.applyState(objProps[propName], obj[propName], i);
-            this.callAfterRestore(obj[propName]);
           }
+          obj[propName] = this.applyState(objProps[propName], obj[propName], i);
+          this.debug('Storage::applyState', 'class = ' + className + '  - FILED', { propName });
+
+          this.callAfterRestore(obj[propName]);
         } else {
           obj[propName] = objProps[propName]; //i = 9
         }

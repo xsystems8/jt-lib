@@ -1,5 +1,5 @@
 {
-  "types": ["./lib/interfaces/global.d.ts"],
+  "types": ["./src/lib/interfaces/global.d.ts"],
   "compilerOptions": {
     "module": "esnext",
     "declaration": false,
@@ -12,6 +12,7 @@
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
+    "typeRoots": ["./src/lib/interfaces/global.d.ts"],
     "forceConsistentCasingInFileNames": false
   },
 }

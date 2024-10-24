@@ -1,4 +1,4 @@
-export function uniqueId(length = 4) {
+export function uniqueId(length = 4): string {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const charactersLength = characters.length;

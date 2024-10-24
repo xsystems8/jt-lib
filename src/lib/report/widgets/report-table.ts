@@ -28,6 +28,12 @@ export class ReportTable extends ReportWidget {
     return true;
   }
 
+  clear() {
+    this.rows = {};
+    this.counter = 0;
+
+    return true;
+  }
   update(row: TableRow, idField = 'id'): boolean {
     let id = this.getIdFromRow(row, idField);
 

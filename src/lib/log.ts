@@ -2,6 +2,7 @@ import { globals } from './globals';
 import { currentTime, currentTimeString } from './utils/date-time';
 import { getArgBoolean } from './base';
 import { BaseError } from './Errors';
+
 const LOG_MAX_MESSAGES = 200;
 
 export function log(event: string, msg: string, context: Record<string, any> = {}, showInConsole = false) {
@@ -13,7 +14,17 @@ export function trace(event: string, msg: string, context: Record<string, any> =
 }
 
 export function warning(event: string, msg: string, context: Record<string, any> = {}, showInConsole = false) {
-  _updateLog('warning', '⚠️ ' + event, msg, context, true);
+  _updateLog('warning', '⚠️ ' + event, msg, { ...context, internalStack: new Error().stack.split('\n') }, true);
+}
+
+const IS_DEBUG = getArgBoolean('isDebug', false);
+export function debug(event: string, msg: string, context: Record<string, any> = {}) {
+  //TODO check tester performance (debug() function increase time in 3 times)
+  if (isTester()) return;
+  if (IS_DEBUG) {
+    const stack = new Error().stack.split('\n');
+    _updateLog('debug', 'DEBUG - ' + event, msg, { ...context, stack }, !isTester());
+  }
 }
 
 export function error(event: string, msg: string): void;
@@ -21,10 +32,6 @@ export function error(event: string, msg: string, context: any): void;
 export function error(error: Error | BaseError, context: any): void;
 export function error(error: Error | BaseError): void;
 export function error(...args: any): void {
-  if (getArgBoolean('isDebug', false)) {
-    warning('error', 'error args', { ...args, t0: typeof args[0] }, true);
-  }
-
   //------error(error: BaseError)------
   if (args[0] && args[0] instanceof Error) {
     let error: BaseError;
@@ -138,14 +145,9 @@ export function warningOnce(event, msg, args = {}, ttl = 0) {
   }
 }
 
-export function debugLog(...args: any[]) {
-  console.log({ date: currentTimeString(), ...args });
+type LogType = 'log' | 'trace' | 'warning' | 'error' | 'debug';
 
-  log('debugLog', '', { ...args });
-}
-
-type LogType = 'log' | 'trace' | 'warning' | 'error';
-
+const MAX_CONSOLE_LOG = 1000;
 function _updateLog(type: LogType, event: string, msg: string, args: Record<string, any> = {}, showInConsole = false) {
   if (globals.logs[type] === undefined) {
     globals.logs[type] = [];
@@ -155,6 +157,13 @@ function _updateLog(type: LogType, event: string, msg: string, args: Record<stri
     globals.logs[type].slice(-LOG_MAX_MESSAGES);
   }
 
+  if (isTester() && showInConsole) {
+    globals.consoleLogCount++;
+    if (globals.consoleLogCount > MAX_CONSOLE_LOG) {
+      console.error('Too many console.log() calls. Max count = ' + MAX_CONSOLE_LOG);
+      forceStop();
+    }
+  }
   const argsN = JSON.stringify(args);
 
   globals.logs[type].push({ date: currentTimeString(), event: event, msg: msg, args: argsN });
@@ -168,6 +177,10 @@ function _updateLog(type: LogType, event: string, msg: string, args: Record<stri
     }
 
     if (type === 'warning') {
+      console.warn(event + ' | ' + msg, args);
+    }
+
+    if (type === 'debug') {
       console.warn(event + ' | ' + msg, args);
     }
   }

@@ -1,4 +1,6 @@
-export class ReportWidget {
+import { BaseObject } from '../../base-object';
+
+export class ReportWidget extends BaseObject {
   isVisible = true;
 
   setVisible(visible: boolean) {

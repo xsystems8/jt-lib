@@ -3,7 +3,7 @@ import { EventListener, TickExecutionData } from './types';
 import { uniqueId } from '../base';
 import { BaseError } from '../Errors';
 import { error, log } from '../log';
-import { timeCurrent } from '../utils/date-time';
+import { currentTimeString, timeCurrent } from '../utils/date-time';
 
 export class EventEmitter extends BaseObject {
   private readonly tickExecInterval = new Map<string, TickExecutionData>();
@@ -19,7 +19,7 @@ export class EventEmitter extends BaseObject {
     return this.subscribe(`onOrderChange_${symbol}`, handler, owner);
   }
 
-  subscribeOnTick(handler: () => Promise<void>, owner: BaseObject, symbol: string, interval?: number) {
+  subscribeOnTick(handler: (data?: any) => Promise<any>, owner: BaseObject, symbol: string, interval?: number) {
     const event = `emitOnTick_${symbol}`;
 
     if (!interval) {
@@ -45,7 +45,7 @@ export class EventEmitter extends BaseObject {
    * @param owner - object witch has this listener (for unsubscribing by object)
    * @returns {string} - listener id (for unsubscribing by id)
    */
-  subscribe(eventName: string, handler: (data?: any) => Promise<void>, owner: BaseObject): string {
+  subscribe(eventName: string, handler: (data?: any) => Promise<any>, owner: BaseObject): string {
     if (typeof handler !== 'function') {
       throw new BaseError('EventEmitter::subscribe() handler should be a function  ', { eventName });
     }
@@ -81,11 +81,16 @@ export class EventEmitter extends BaseObject {
       handlerName: handler.name,
       ownerName: owner.constructor.name,
       ownerId: owner.id,
+      result: {},
     };
 
     listeners.push(listenerData);
 
-    log('EventsEmitter:subscribe', `A handler for the ${eventName} event has been registered`);
+    log('EventsEmitter:subscribe', `A handler for the ${eventName} event has been registered`, {
+      eventName,
+      id,
+      ownerId: owner.id,
+    });
 
     return id;
   }
@@ -115,8 +120,8 @@ export class EventEmitter extends BaseObject {
 
     for (const listener of listeners) {
       try {
-        //  trace('EventsEmitter:emit', `Emitting event ${eventName} for listener ${listener.ownerId}`, {});
-        await listener.handler(data);
+        let result = await listener.handler(data);
+        listener.result = { result, updated: currentTimeString(), ownerId: listener.ownerId };
       } catch (e) {
         error(e, { ...listener, owner: undefined, data });
       }

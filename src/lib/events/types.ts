@@ -8,6 +8,7 @@ export interface EventListener {
   owner: BaseObject;
   ownerName: string;
   ownerId: string;
+  result?: any;
 }
 
 export interface TickExecutionData {

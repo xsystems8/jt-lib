@@ -1,6 +1,5 @@
 import { globals } from '../globals';
 
-import { BalanceWatcher } from './Watchers/balance-watcher';
 import { OrdersWatcher } from './Watchers/orders-watcher';
 import { OrdersWatcherPriority } from './Watchers/orders.watcher.priority';
 import { PositionsWatcher } from './Watchers/positions-watcher';
@@ -43,14 +42,12 @@ export class TestWatcher extends Watcher {
       await globals.events.emit('onTickEnded');
     }
   }
-  async initA() {
+  async init() {
     trace('TestWatcher:init', 'init');
 
-    //    this.balanceWatcher = new BalanceWatcher();
     this.ordersWatcher = new OrdersWatcher();
     this.ordersWatcherPriority = new OrdersWatcherPriority();
     this.positionsWatcher = new PositionsWatcher();
-    //this.candlesWatcher = new CandlesWatcher();
     return this;
   }
 }

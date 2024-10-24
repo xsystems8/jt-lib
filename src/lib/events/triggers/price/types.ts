@@ -12,6 +12,7 @@ export interface CreatePriceTaskParams {
   retry?: boolean | number;
   comment?: string;
   group?: string;
+  direction?: PriceTriggerDirection;
 }
 
 export interface PriceTriggerTask extends TriggerTask {

@@ -7,7 +7,9 @@ import { Storage } from '../storage';
 import { getArgBoolean, getArgString } from '../base';
 import { BaseError } from '../Errors';
 import { normalize } from '../utils/numbers';
-import { CandlesBufferManager } from '../candles';
+import { CandlesBufferService } from '../candles';
+import { errorContext } from '../utils/errors';
+import { Indicators } from '../indicator';
 
 /**
  * This is a base class for all strategies with extended functionality.
@@ -23,7 +25,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
   iterator = 0;
   hedgeMode: boolean;
   timeframe: number;
-  version = 1;
+  version = 2;
 
   balanceTotal: number;
   balanceFree: number;
@@ -81,7 +83,8 @@ export class Script extends BaseObject implements BaseScriptInterface {
     globals.triggers = new TriggerService({ idPrefix });
     globals.report = new Report({ idPrefix });
     globals.storage = new Storage({ idPrefix });
-    globals.candlesBufferManager = new CandlesBufferManager({ idPrefix });
+    globals.candlesBufferService = new CandlesBufferService({ idPrefix });
+    globals.indicators = new Indicators({ idPrefix });
   }
 
   init = async () => {
@@ -90,7 +93,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
       this.balanceTotal = balanceInfo.total.USDT;
       this.balanceFree = balanceInfo.free.USDT;
     } catch (e) {
-      throw new BaseError(e);
+      throw errorContext(e, {});
     } finally {
       this.isInitialized = false;
     }
@@ -118,7 +121,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
   };
 
   _isTickLocked = false;
-  async runOnTick() {
+  async runOnTick(data: Tick) {
     if (this._isTickLocked) {
       return;
     }
@@ -129,8 +132,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
     try {
       await this.onBeforeTick();
       await globals.events.emit('onBeforeTick');
-      await this.onTick();
-
+      await this.onTick(data);
       await globals.events.emit('onTick');
       //emit for special symbol
       await globals.events.emitOnTick();
@@ -151,7 +153,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
     forceStop();
   }
 
-  runTickEnded = async (data: Tick[]) => {
+  runTickEnded = async (data: Tick) => {
     try {
       void globals.events.emit('onTickEnded', data);
     } catch (e) {
@@ -262,7 +264,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
 
   async onBeforeTick() {}
 
-  async onTick() {}
+  async onTick(data: Tick) {}
 
   async onAfterTick() {}
 
