@@ -14,7 +14,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - ROLLUP_TS_CONFIG=/www/app/tsconfig.bundler.json
       - SITE_API_HOST=https://jt-lab.com
-      - ENGINE_MODE=realtime
+      - ENGINE_MODE=both
     ports:
       - "${APP_PORT}:80"
     links:

@@ -1,6 +1,13 @@
 # JTL Docs
 ___
+#### Run command:
+`curl -O https://raw.githubusercontent.com/xsystems8/jt-lib/main/init.sh && chmod +x ./init.sh && ./init.sh`
 
+#### Start command:
+`./run_daemon.sh`
+
+#### Stop command:
+`./stop_daemon.sh`
 
 * **Get Started**
   - [Strategies](./docs/runtime.md)
