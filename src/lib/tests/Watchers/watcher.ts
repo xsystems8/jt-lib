@@ -1,4 +1,4 @@
-import { BaseObject } from '../../base-object.js';
+import { BaseObject } from '../../base-object';
 import { globals } from '../../globals';
 import { currentTimeString } from '../../utils/date-time';
 import { AddWatcherError, WatcherError } from './types';

@@ -20,7 +20,7 @@ services:
     links:
       - redis
     volumes:
-      - ./lib:/www/app/strategy-files:delegated
+      - ./src:/www/app/strategy-files:delegated
       - ./storage.db:/www/app/storage.db:delegated
       - ./history-bars:/www/app/history-bars:delegated
       - ./markets.json:/www/app/markets.json
