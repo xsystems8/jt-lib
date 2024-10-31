@@ -17,8 +17,6 @@ services:
       - ENGINE_MODE=realtime
     ports:
       - "${APP_PORT}:80"
-    links:
-      - redis
     volumes:
       - ./src:/www/app/strategy-files:delegated
       - ./storage.db:/www/app/storage.db:delegated
