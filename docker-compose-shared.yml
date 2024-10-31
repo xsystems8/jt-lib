@@ -2,6 +2,8 @@ services:
   app:
     image: jtlab/jtl-worker:main
     restart: always
+    networks:
+      jtlab:
     environment:
       - PORT=80
       - STRATEGY_FILES_PATH=/www/app/strategy-files/
