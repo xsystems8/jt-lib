@@ -1,6 +1,6 @@
 services:
   app:
-    image: jtlab/jtl-worker:main
+    image: "registry.digitalocean.com/xsystems/jtl-worker:${APP_VERSION}"
     restart: always
     networks:
       jtlab:
@@ -17,6 +17,7 @@ services:
       - ROLLUP_TS_CONFIG=/www/app/tsconfig.bundler.json
       - SITE_API_HOST=https://jt-lab.com
       - ENGINE_MODE=realtime
+      - "CCXT_PROXY=${CCXT_PROXY}"
     ports:
       - "${APP_PORT}:80"
     volumes:
