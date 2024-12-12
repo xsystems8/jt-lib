@@ -7,7 +7,7 @@ services:
     environment:
       - PORT=80
       - STRATEGY_FILES_PATH=/www/app/strategy-files/
-      - DATABASE_URL=file:/www/app/storage.db
+      - DATABASE_URL=file:/www/app/storage/storage.db
       - MARKETS_FILE_PATH=/www/app/markets.json
       - ARTIFACTS_DIR_PATH=/www/app/artifacts
       - LOGS_DIR_PATH=/www/app/artifacts
@@ -25,9 +25,9 @@ services:
     ports:
       - "${APP_PORT}:80"
     volumes:
-      - ./src:/www/app/strategy-files:delegated
-      - ./storage.db:/www/app/storage.db:delegated
-      - ./history-bars:/www/app/history-bars:delegated
+      - ./src:/www/app/strategy-files
+      - ./storage:/www/app/storage
+      - ./history-bars:/www/app/history-bars
       - ./markets.json:/www/app/markets.json
       - ./artifacts:/www/app/artifacts
 
