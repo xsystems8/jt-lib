@@ -21,6 +21,7 @@ services:
       - "APP_PORT=${APP_PORT}"
       - "APP_VERSION=${APP_VERSION}"
       - "APP_NAME=${APP_NAME}"
+    user: $USER
     ports:
       - "${APP_PORT}:80"
     volumes:
