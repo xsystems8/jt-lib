@@ -1,7 +1,7 @@
 import { roundTimeByTimeframe, convertTimeframeToString, convertTimeframeToNumber } from '../utils/timeframe';
 import { error, log, trace } from '../log';
 import { globals } from '../globals';
-import { timeToString } from '../utils/date-time';
+import { currentTime, timeToString } from '../utils/date-time';
 import { BaseObject } from '../base-object';
 
 export interface CandlesBufferOptions {
@@ -46,7 +46,7 @@ export class CandlesBuffer extends BaseObject {
 
     globals.events.subscribe('onBeforeTick', this.updateBuffer, this);
 
-    const startTimestamp = isTester() ? (tms() ?? ARGS.startDate.getTime()) : Date.now();
+    const startTimestamp = currentTime();
     const startTime = startTimestamp - this.preloadCandlesCount * this.timeframeNumber * 1000 * 60;
 
     try {
@@ -124,7 +124,6 @@ export class CandlesBuffer extends BaseObject {
   getCandle(shift: number): Candle {
     return this.buffer[this.buffer.length - 1 - shift];
   }
-
   private updateCurrentCandle(currentPrice: number) {
     this.currentCandle.high = Math.max(currentPrice, this.currentCandle.high);
     this.currentCandle.low = Math.min(currentPrice, this.currentCandle.low);

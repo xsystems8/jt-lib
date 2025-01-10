@@ -28,7 +28,7 @@ export const validateNumbersInObject = (obj: any): boolean => {
 
   let wrongKeys = [];
   for (let key in obj) {
-    if (!isRealNumber(obj[key])) {
+    if (isNaN(obj[key])) {
       wrongKeys.push({ key: key, value: obj[key], vType: typeof obj[key] });
     }
   }
@@ -122,7 +122,17 @@ export const isBetween = (number: number, min: number, max: number): boolean => 
   }
   return number >= min && number <= max;
 };
-export const percentDifference = (a: number, b: number, isAbs = true): number => {
+
+/**
+ * Calculate the percentage difference between two numbers
+ * @param a The first number
+ * @param b The second number
+ * @param isAbs Whether to return the absolute value of the percentage difference
+ * @returns {number} The percentage  form a to b
+ * @example percentDifference(100, 90) // (100 - 90) / 100 * 100 = 10
+ * @example percentDifference(90,100) // (90 - 100) / 90 * 100 = -11.11
+ */
+export const percentDifference = (a: number, b: number, isAbs = false): number => {
   if (isNaN(a) || isNaN(b)) {
     throw new BaseError('percentDifference: at least one of argument is NaN', { a, b });
   }

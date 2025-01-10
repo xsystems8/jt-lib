@@ -26,7 +26,7 @@ export class SimpleMovingAverageIndicator extends BaseIndicator {
     if (candles.length < this.period) return;
 
     if (this.lastIndex === 0) {
-      this.firstValue = candles[0].open;
+      this.firstValue = candles[0].close;
 
       for (let i = 0; i < this.period; i++) {
         this.sum += candles[i].open;
@@ -40,8 +40,8 @@ export class SimpleMovingAverageIndicator extends BaseIndicator {
     const startIndex = this.lastIndex + 1;
 
     for (let i = startIndex; i < candles.length; i++) {
-      this.sum = this.sum - this.firstValue + candles[i].open;
-      this.firstValue = candles[i - this.period + 1].open;
+      this.sum = this.sum - this.firstValue + candles[i].close;
+      this.firstValue = candles[i - this.period + 1].close;
       const avg = this.sum / this.period;
       this.buffer.push({ timestamp: candles[i].timestamp, value: avg });
       this.lastTimeUpdated = candles[i].timestamp;

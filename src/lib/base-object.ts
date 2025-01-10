@@ -1,6 +1,6 @@
 import { uniqueId } from './base';
 import { globals } from './globals';
-import { log, warning } from './log';
+import { error, log, warning } from './log';
 import { BaseError } from './Errors';
 import { currentTime } from './utils/date-time';
 
@@ -9,6 +9,7 @@ export class BaseObject {
   _isDestroyed = false;
   _listenersId: any = [];
   _created = currentTime();
+  _children: BaseObject[] = [];
 
   constructor(args: any = {}) {
     let idPrefix = args.idPrefix ?? '';
@@ -18,6 +19,10 @@ export class BaseObject {
     log('BaseObject::constructor', 'Object created with id ' + this.id, { args });
 
     return this;
+  }
+
+  addChild(child: BaseObject) {
+    this._children.push(child);
   }
 
   async call(functionName: string, data?: any) {
@@ -52,31 +57,23 @@ export class BaseObject {
     globals.events.unsubscribeByObjectId(this._id);
   }
 
+  notForDestroy = [];
   public destroy() {
-    log('BaseObject::destroy', 'Object destroyed with id ' + this.id + ' ' + this.constructor.name);
+    let children = [];
+    for (let child of this._children) {
+      try {
+        child.destroy();
+        children.push({ childId: child?.id, parentId: this.id, destroyed: child._isDestroyed });
+      } catch (e) {
+        error(e, { childId: child?.id, parentId: this.id });
+      }
+    }
 
     this._isDestroyed = true;
     globals.removeObject(this);
     this.unsubscribe();
 
-    for (let propName of Object.keys(this)) {
-      const obj = this[propName];
-      if (obj === null || typeof obj !== 'object') continue;
-
-      if (obj && obj instanceof BaseObject) {
-        if (obj._isDestroyed) {
-          warning('BaseObject::destroy', `Object ${obj.id} is already destroyed`);
-          continue;
-        }
-        this[propName].destroy();
-        continue;
-      }
-
-      const id = obj?.id;
-      if (globals.hasObject(id)) {
-        const type = obj.constructor.name;
-        warning('BaseObject::destroy', `Object ${id} of ${type} is not destroyed`);
-      }
-    }
+    log('BaseObject::destroy', 'Object destroyed with id ' + this.id + ' ' + this.constructor.name, { info: children });
+    return;
   }
 }

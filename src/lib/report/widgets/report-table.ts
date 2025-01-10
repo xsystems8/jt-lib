@@ -11,6 +11,10 @@ export class ReportTable extends ReportWidget {
     super();
   }
 
+  setMaxRows(maxRows: number) {
+    this.MAX_ROWS = maxRows;
+  }
+
   private getIdFromRow(row: TableRow, idField = 'id'): string | number {
     row[idField] = row[idField] !== undefined ? row[idField] : this.counter;
     return row[idField];
@@ -23,7 +27,7 @@ export class ReportTable extends ReportWidget {
       return false;
     }
 
-    this.rows[id] = row;
+    this.rows[id] = { ...row };
     this.counter++;
     return true;
   }

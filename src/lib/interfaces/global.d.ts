@@ -44,6 +44,8 @@ declare global {
   export type Position = PositionTypes.Position;
   export type PositionSide = PositionTypes.PositionSide;
 
+  export type PositionSideType = OrderTypes.PositionSideType;
+
   export type SymbolInfo = SymbolTypes.Symbol;
 
   export enum ReportBlockType {
@@ -68,32 +70,28 @@ declare global {
   abstract class BaseScriptInterface {
     protected constructor(args: GlobalARGS);
 
-    args: GlobalARGS;
-    timeframe: number;
     connectionName: string;
-    //  symbol: string;
     symbols: string[];
-    interval: string;
-    iterator: number;
+    interval: number;
 
-    init: () => Promise<void>;
+    init(): Promise<void>;
+    run: () => Promise<void> | void;
+    stop: () => Promise<void> | void | never;
+
     runOnTick: (data: Tick) => Promise<void> | void;
     runTickEnded: (data: Tick) => Promise<void> | void;
     runOnTimer: () => Promise<void> | void;
     runOnOrderChange: (data: Order[]) => Promise<void> | void;
     runOnError: (e: any) => Promise<void | never> | never | void;
     runArgsUpdate: (args: GlobalARGS) => Promise<void> | void;
-    onTick: (data: Tick) => Promise<void> | void;
-    onTimer: () => Promise<void> | void;
-    onOrderChange: (order: Order) => Promise<void> | void;
-    onArgsUpdate: (args: GlobalARGS) => Promise<void> | void;
-    onError: (e: any) => Promise<void | never> | never | void;
-    run: () => Promise<void> | void;
-    stop: () => Promise<void> | void | never;
-
-    getInternalState?: (key: string) => unknown;
-    trigger?: (event: string) => void;
+    runOnReportAction: (action: string, payload: any) => Promise<void> | void;
   }
+
+  /*
+  Trading API LIST
+  ##createOrder
+  createOrder(symbol: string, type: OrderType, side: OrderSide, amount: number, price: number, params: Record<string, unknown>): Promise<Order>;
+   */
 
   //-------environment functions-----------------
   /**
@@ -157,7 +155,7 @@ declare global {
    */
   function setLeverage(leverage: number, symbol: string): Promise<any>;
 
-  //--------Market Data functions-----------------
+  //--------Trading Api-----------------
 
   /**
    * getSymbolInfo - return symbol info object
@@ -273,11 +271,11 @@ declare global {
   function getOrders(symbol: string, since = 0, limit = 500, params: any = undefined): Promise<Order[]>;
 
   /**
-   * getOpenOrders - return array of orders for symbol
-   * @param symbol - symbol name spot (BTC/USDT) or futures (BTC/USDT:USDT)
-   * @param since - start time of the orders (timestamp)
-   * @param limit - limit of the orders
-   * @param params - additional params
+   * getOpenOrders - return array of orders for symbol with status `open`
+   * @param symbol {string} - symbol name spot (BTC/USDT) or futures (BTC/USDT:USDT)
+   * @param since  {number} - start time of the orders (timestamp) (optional)
+   * @param limit {number} - limit of the orders (optional)
+   * @param params {any} - additional params (optional)
    * @returns {Promise<Order[]>}
    * @example:
    * let orders = await getOpenOrders('BTC/USDT', 0, 10);
@@ -403,6 +401,10 @@ declare global {
   function forceStop(): void;
 
   function systemUsage(): { cpu: number; memory: number };
+
+  const axios: any;
+
+  const getUserId: () => string;
 }
 
 export {};

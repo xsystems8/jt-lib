@@ -24,10 +24,14 @@ export class TriggerService extends BaseObject implements TriggerServiceInterfac
       let symbol = args.symbol;
       this.createNewPriceTrigger(symbol);
     }
+
+    this.addChild(this.timeTrigger);
+    this.addChild(this.orderTrigger);
   }
 
   private createNewPriceTrigger(symbol: string) {
     let trigger = new PriceTrigger({ symbol });
+    this.addChild(trigger);
     this.priceTriggers[symbol] = trigger;
     return trigger;
   }
@@ -118,15 +122,6 @@ export class TriggerService extends BaseObject implements TriggerServiceInterfac
     return trigger.addTask(params);
   }
 
-  destroy() {
-    super.destroy();
-
-    for (let key in this.priceTriggers) {
-      let trigger = this.priceTriggers[key];
-      trigger.destroy();
-    }
-  }
-
   getActiveTasks(): TriggerTask[] {
     const timeTasks = this.timeTrigger.getActiveTasks();
     const orderTasks = this.orderTrigger.getActiveTasks();
@@ -161,6 +156,8 @@ export class TriggerService extends BaseObject implements TriggerServiceInterfac
     if (type === 'order') return this.orderTrigger.getTasksByName(taskName);
 
     if (type === 'time') return this.timeTrigger.getTasksByName(taskName);
+
+    return [];
   }
 
   cancelOrderTask(taskId: string) {

@@ -53,5 +53,5 @@ namespace OrderTypes {
     fee: Fee;
   }
 
-  type PositionSideType = 'long' | 'short' | 'both';
+  export type PositionSideType = 'long' | 'short' | 'both';
 }

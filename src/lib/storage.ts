@@ -5,7 +5,7 @@ import { EventEmitter, TriggerService, TimeTrigger, OrderTrigger, PriceTrigger }
 import { ReportCard } from './report/widgets/report-card';
 import { ReportTable } from './report/widgets/report-table';
 import { TradingViewChart } from './report/widgets/report-tv';
-import { Exchange } from './exchange';
+import { OrdersBasket } from './exchange';
 import { ReportChart } from './report/widgets/report-chart';
 import { BaseObject } from './base-object';
 import { getArgBoolean } from './base';
@@ -47,12 +47,15 @@ export class Storage extends BaseObject {
       this.addClass(OrderTrigger);
       this.addClass(PriceTrigger);
       this.addClass(EventEmitter);
-      this.addClass(Exchange);
+      this.addClass(OrdersBasket);
       this.addClass(Report);
       this.addClass(ReportCard);
       this.addClass(ReportTable);
       this.addClass(TradingViewChart);
       this.addClass(ReportChart);
+    }
+    if (getArgBoolean('isDebugStorage', false)) {
+      this.isDebug = true;
     }
   }
 
@@ -190,7 +193,7 @@ export class Storage extends BaseObject {
           } else {
             if (this._baseClasses[className]) {
               obj[propName] = new this._baseClasses[className]();
-              this.debug('Storage::applyState', 'class = ' + className + '  - CREATED', { propName });
+              // this.debug('Storage::applyState', 'class = ' + className + '  - CREATED', { propName });
             } else {
               warning(
                 'Storage::applyState',
@@ -204,7 +207,7 @@ export class Storage extends BaseObject {
             }
           }
           obj[propName] = this.applyState(objProps[propName], obj[propName], i);
-          this.debug('Storage::applyState', 'class = ' + className + '  - FILED', { propName });
+          // this.debug('Storage::applyState', 'class = ' + className + '  - FILED', { propName });
 
           this.callAfterRestore(obj[propName]);
         } else {

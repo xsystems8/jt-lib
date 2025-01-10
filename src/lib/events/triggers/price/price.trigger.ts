@@ -82,14 +82,18 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
 
     const id = `price#${this.nextId++}`;
     const currentPrice = close(this.symbol);
-    let direction = PriceTriggerDirection.Up;
+    let direction = params.direction;
 
-    if (currentPrice > params.triggerPrice) {
-      direction = PriceTriggerDirection.Down;
+    if (!direction) {
+      if (currentPrice > params.triggerPrice) {
+        direction = PriceTriggerDirection.UpToDown;
+      } else {
+        direction = PriceTriggerDirection.DownToUp;
+      }
     }
 
     if (params.direction) {
-      if (params.direction === PriceTriggerDirection.Up || params.direction === PriceTriggerDirection.Down) {
+      if (params.direction === PriceTriggerDirection.DownToUp || params.direction === PriceTriggerDirection.UpToDown) {
         direction = params.direction;
       } else {
         error('PriceTrigger::addTask', 'Wrong direction, possible values up or down', { params });
@@ -98,8 +102,11 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
     }
 
     const task: PriceTriggerTask = {
-      ...params,
+      name: params.name,
+      triggerPrice: params.triggerPrice,
+      args: params.args,
       symbol: this.symbol,
+      group: params.group,
       id,
       type: 'price',
       direction,
@@ -112,24 +119,20 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
     };
 
     switch (direction) {
-      case PriceTriggerDirection.Up:
-        this.upperMinPrice = this.upperMinPrice
-          ? Math.min(this.upperMinPrice, params.triggerPrice)
-          : params.triggerPrice;
+      case PriceTriggerDirection.DownToUp:
         this.upperPriceTasks.set(id, task);
         break;
-      case PriceTriggerDirection.Down:
-        this.lowerMaxPrice = this.lowerMaxPrice
-          ? Math.max(this.lowerMaxPrice, params.triggerPrice)
-          : params.triggerPrice;
+      case PriceTriggerDirection.UpToDown:
         this.lowerPriceTasks.set(id, task);
+        break;
     }
 
     if (!this._eventListenerId) {
       this._eventListenerId = globals.events.subscribeOnTick(this.onTick, this, this.symbol);
     }
 
-    log('PriceTrigger::addTask', 'New task registered', { task: params });
+    this.recalculateBorderPrices(direction);
+    log('PriceTrigger::addTask', 'New task registered', { task: task, price: currentPrice, params });
 
     return id;
   }
@@ -147,14 +150,14 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
         await this.executeTask(task);
       }
 
-      this.recalculateBorderPrices(PriceTriggerDirection.Up);
+      this.recalculateBorderPrices(PriceTriggerDirection.DownToUp);
     } else {
       for (const task of this.lowerPriceTasks.values()) {
         if (task.triggerPrice < currentPrice) continue;
         await this.executeTask(task);
       }
 
-      this.recalculateBorderPrices(PriceTriggerDirection.Down);
+      this.recalculateBorderPrices(PriceTriggerDirection.UpToDown);
     }
 
     if (!this.lowerPriceTasks.size && !this.upperPriceTasks.size) {
@@ -171,7 +174,7 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
     if (!task.callback && !this._registeredHandlers.get(task.name)) {
       task.isActive = false;
 
-      if (task.direction === PriceTriggerDirection.Up) {
+      if (task.direction === PriceTriggerDirection.DownToUp) {
         this.upperPriceTasks.delete(task.id);
       } else {
         this.lowerPriceTasks.delete(task.id);
@@ -212,7 +215,7 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
           });
       }
 
-      if (task.direction === PriceTriggerDirection.Up) {
+      if (task.direction === PriceTriggerDirection.DownToUp) {
         this.upperPriceTasks.delete(task.id);
         return;
       }
@@ -230,7 +233,7 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
 
         this.inactiveTasks.set(task.id, task);
 
-        if (task.direction === PriceTriggerDirection.Up) {
+        if (task.direction === PriceTriggerDirection.DownToUp) {
           this.upperPriceTasks.delete(task.id);
           return;
         }
@@ -264,10 +267,11 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
       return;
     }
 
+    log('PriceTrigger::cancelTask', 'Task canceled ' + task.id, { taskId, task });
     this.lowerPriceTasks.delete(task.id);
     this.upperPriceTasks.delete(task.id);
     this.inactiveTasks.set(taskId, task);
-    this.recalculateBorderPrices(isUpperTask ? PriceTriggerDirection.Up : PriceTriggerDirection.Down);
+    this.recalculateBorderPrices(isUpperTask ? PriceTriggerDirection.DownToUp : PriceTriggerDirection.UpToDown);
     this.clearInactive();
   }
 
@@ -308,7 +312,7 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
 
   private recalculateBorderPrices(direction?: PriceTriggerDirection) {
     //TODO  working wrong with groups task (|| 1) not recalculate for task wich cacelled
-    if (!direction || direction === PriceTriggerDirection.Up || 1) {
+    if (!direction || direction === PriceTriggerDirection.DownToUp || 1) {
       this.lowerMaxPrice = null;
       for (const task of this.lowerPriceTasks.values()) {
         if (!task.isActive) continue;
@@ -319,7 +323,8 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
         this.lowerMaxPrice = Math.max(this.lowerMaxPrice, task.triggerPrice);
       }
     }
-    if (!direction || direction === PriceTriggerDirection.Down || 1) {
+
+    if (!direction || direction === PriceTriggerDirection.UpToDown || 1) {
       this.upperMinPrice = null;
       for (const task of this.upperPriceTasks.values()) {
         if (!task.isActive) continue;
@@ -351,13 +356,13 @@ export class PriceTrigger extends Trigger implements PriceTriggerInterface {
       return;
     }
 
-    if (direction === PriceTriggerDirection.Up) {
+    if (direction === PriceTriggerDirection.DownToUp) {
       for (const task of this.upperPriceTasks.values()) {
         this.upperMinPrice = Math.min(this.upperMinPrice, task.triggerPrice);
       }
     }
 
-    if (direction === PriceTriggerDirection.Down) {
+    if (direction === PriceTriggerDirection.UpToDown) {
       for (const task of this.lowerPriceTasks.values()) {
         this.lowerMaxPrice = Math.max(this.lowerMaxPrice, task.triggerPrice);
       }

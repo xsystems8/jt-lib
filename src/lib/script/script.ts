@@ -11,18 +11,14 @@ import { CandlesBufferService } from '../candles';
 import { errorContext } from '../utils/errors';
 import { Indicators } from '../indicator';
 
-/**
- * This is a base class for all strategies with extended functionality.
- * works for both tester and live trading.
- * Strategy class should be extended from this class.
- */
-export class Script extends BaseObject implements BaseScriptInterface {
+export class Script extends BaseObject {
+  MAX_ORDERS = 20000;
   connectionName: string; //required
   symbols: string[] = []; //required
-  symbol: string;
-  interval: string; // if set  - onTimer will be called every interval instead of onTick
-  args: GlobalARGS;
+  interval: number; // if set  - onTimer will be called every interval instead of onTick
+
   iterator = 0;
+
   hedgeMode: boolean;
   timeframe: number;
   version = 2;
@@ -37,14 +33,8 @@ export class Script extends BaseObject implements BaseScriptInterface {
   constructor(args: GlobalARGS) {
     super(args);
     this._testerStartRealTime = Date.now();
-    this.args = args;
 
-    log(
-      'Script:constructor',
-      '===========================Constructor(v 1.1)===========================',
-      { args },
-      true,
-    );
+    log('Script:constructor', '=============Constructor(v 2.1)=============', { args }, true);
     try {
       this.connectionName = getArgString('connectionName', undefined, true);
       this.hedgeMode = getArgBoolean('hedgeMode', false);
@@ -55,15 +45,15 @@ export class Script extends BaseObject implements BaseScriptInterface {
     if (isTester()) {
       this.symbols.push(args.symbol);
     } else {
+      //TODO make symbolsInfo available in constructor
       if (!this.symbols?.length) {
         let symbol = '';
         let symbolsLine = getArgString('symbols', '');
 
         let symbols = symbolsLine.split(',');
-
         symbols.forEach((symbol) => {
           if (symbol.includes('/')) {
-            this.symbols.push(symbol);
+            this.symbols.push(symbol.trim());
           }
         });
 
@@ -77,7 +67,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
       throw new BaseError('Script::constructor symbols is not defined');
     }
 
-    const idPrefix = 'Global';
+    const idPrefix = 'Global'; //
     globals.strategy = this;
     globals.events = new EventEmitter({ idPrefix });
     globals.triggers = new TriggerService({ idPrefix });
@@ -85,43 +75,45 @@ export class Script extends BaseObject implements BaseScriptInterface {
     globals.storage = new Storage({ idPrefix });
     globals.candlesBufferService = new CandlesBufferService({ idPrefix });
     globals.indicators = new Indicators({ idPrefix });
+
+    //TODO add to ARGS.isMultiSymbols when optimization run by symbols (then delete this code)
+    if (ARGS.isMultiSymbols === undefined) {
+      ARGS.isMultiSymbols = true;
+    }
   }
 
-  init = async () => {
+  protected async init() {
     try {
       let balanceInfo = await getBalance();
       this.balanceTotal = balanceInfo.total.USDT;
       this.balanceFree = balanceInfo.free.USDT;
+      log('Script::init', 'getBalance', balanceInfo, true);
     } catch (e) {
       throw errorContext(e, {});
     } finally {
       this.isInitialized = false;
     }
-    log(
-      'Script:init',
-      'init info',
-      {
-        balanceTotal: this.balanceTotal,
-        balanceFree: this.balanceFree,
-        symbols: this.symbols,
-        hedgeMode: this.hedgeMode,
-        args: ARGS,
-      },
-      true,
-    );
+
+    let initInfo = {
+      balanceTotal: this.balanceTotal,
+      balanceFree: this.balanceFree,
+      symbols: this.symbols,
+      hedgeMode: this.hedgeMode,
+      ARGS,
+    };
+
     try {
       this.isInitialized = true;
       await this.onInit();
-      await globals.events.emit('onInit');
     } catch (e) {
       await this.runOnError(e);
     } finally {
       this.isInitialized = false;
     }
-  };
+  }
 
   _isTickLocked = false;
-  async runOnTick(data: Tick) {
+  protected async runOnTick(data: Tick) {
     if (this._isTickLocked) {
       return;
     }
@@ -130,11 +122,11 @@ export class Script extends BaseObject implements BaseScriptInterface {
     }
     this._isTickLocked = true;
     try {
+      //TODO delete all   await globals.events.emit('onBeforeTick');    await globals.events.emit('onAfterTick');
       await this.onBeforeTick();
       await globals.events.emit('onBeforeTick');
       await this.onTick(data);
       await globals.events.emit('onTick');
-      //emit for special symbol
       await globals.events.emitOnTick();
       await this.onAfterTick();
       await globals.events.emit('onAfterTick');
@@ -148,12 +140,13 @@ export class Script extends BaseObject implements BaseScriptInterface {
 
   isStop = false;
   forceStop(reason: string) {
-    error('Script:forceStop', reason, {});
     this.isStop = true;
     forceStop();
+    error('Script::forceStop', reason, {});
+    throw new BaseError(reason);
   }
 
-  runTickEnded = async (data: Tick) => {
+  protected runTickEnded = async (data: Tick) => {
     try {
       void globals.events.emit('onTickEnded', data);
     } catch (e) {
@@ -161,7 +154,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
     }
   };
 
-  runOnTimer = async () => {
+  protected runOnTimer = async () => {
     try {
       this.iterator++;
       await this.onTimer();
@@ -171,7 +164,7 @@ export class Script extends BaseObject implements BaseScriptInterface {
     }
   };
   closedOrdersId: Record<string, string> = {};
-  runOnOrderChange = async (orders: Order[]) => {
+  protected runOnOrderChange = async (orders: Order[]) => {
     try {
       for (const order of orders) {
         if (!isTester()) {
@@ -187,6 +180,11 @@ export class Script extends BaseObject implements BaseScriptInterface {
           } catch (e) {
             error(e);
           }
+        } else {
+          this.MAX_ORDERS--;
+          if (this.MAX_ORDERS <= 0) {
+            this.forceStop('Max orders reached');
+          }
         }
 
         await this.onOrderChange(order);
@@ -198,22 +196,17 @@ export class Script extends BaseObject implements BaseScriptInterface {
     }
   };
 
-  runOnError = async (e: any) => {
+  protected runOnError = async (e: any) => {
     if (this.isStop) {
       throw e;
     }
     error(e);
   };
 
-  runArgsUpdate = async (args: GlobalARGS) => {
+  protected runArgsUpdate = async (args: GlobalARGS) => {
     try {
-      this.args = { ...args };
       await this.onArgsUpdate(args);
       await globals.events.emit('onArgsUpdate', args);
-      if (args.isTradeAllowed !== undefined) {
-        globals.isTradeAllowed = args.isTradeAllowed === 'true';
-        await globals.events.emit('onTradeAllowed', { isTradeAllowed: global.isTradeAllowed });
-      }
     } catch (e) {
       await this.runOnError(e);
     }
@@ -223,15 +216,16 @@ export class Script extends BaseObject implements BaseScriptInterface {
     throw e;
   };
 
-  run = async () => {
+  //TODO delete run method - because it is not used
+  protected async run() {
     try {
       await globals.events.emit('onRun');
     } catch (e) {
       await this.runOnError(e);
     }
-  };
+  }
 
-  stop = async () => {
+  protected async stop() {
     log('Script:stop', '===========================Stop===========================', {}, true);
     try {
       await globals.events.emit('onBeforeStop');
@@ -242,12 +236,14 @@ export class Script extends BaseObject implements BaseScriptInterface {
       await this.runOnError(e);
     }
     this._testerEndRealTime = Date.now();
+    //  if (isTester()) {
     let min = normalize((this._testerEndRealTime - this._testerStartRealTime) / 1000 / 60, 0);
     let sec = normalize((this._testerEndRealTime - this._testerStartRealTime) / 1000, 0);
     log('Script:stop', `Tester spend ${min}:${sec}`, {}, true);
-  };
+    //}
+  }
 
-  async runOnReportAction(action: string, payload: any) {
+  protected async runOnReportAction(action: string, payload: any) {
     try {
       await this.onReportAction(action, payload);
       await globals.events.emit('onReportAction', { action, payload });

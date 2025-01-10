@@ -4,7 +4,7 @@ import type { Script } from './script';
 import type { Storage } from './storage';
 import type { BaseObject } from './base-object';
 import type { CandlesBufferService } from './candles';
-import type { Exchange } from './exchange';
+import type { OrdersBasket } from './exchange';
 import { Indicators } from './indicator';
 import { getArgBoolean } from './base';
 
@@ -17,8 +17,6 @@ class GlobalScope {
   private _candlesBufferService: CandlesBufferService = null;
   private _indicators: Indicators = null;
   private _isTradeAllowed = true;
-
-  public exchange: Exchange = null;
 
   public balanceInfo = {};
   public positionsInfo = {};
@@ -44,7 +42,8 @@ class GlobalScope {
     if (this._objects[object.id] && this._objects[object.id] === object) {
       delete this._objects[object.id];
     } else {
-      console.error(`GlobalScope::removeObject Object with id ${object.id} not found`);
+      let stack = new Error().stack;
+      console.error(`GlobalScope::removeObject Object with id ${object.id} not found`, stack.split('\n'));
     }
   }
 

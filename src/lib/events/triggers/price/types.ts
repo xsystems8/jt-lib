@@ -23,6 +23,6 @@ export interface PriceTriggerTask extends TriggerTask {
 }
 
 export enum PriceTriggerDirection {
-  Up = 'up',
-  Down = 'down',
+  DownToUp = 'DownToUp',
+  UpToDown = 'UpToDown',
 }

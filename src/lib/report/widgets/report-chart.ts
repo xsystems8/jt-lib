@@ -37,6 +37,9 @@ export class ReportChart extends ReportWidget {
     this.lines[lineNameWithAgg] = [];
   }
 
+  getLength() {
+    return this.x.length;
+  }
   addPoint(lineName: string, valueX: number, valueY: number, color?: string) {
     if (!this.linesInfo[lineName]) {
       this.linesInfo[lineName] = { name: lineName, aggType: 'none', color };
@@ -175,9 +178,8 @@ export class ReportChart extends ReportWidget {
     };
   };
 
-  //TODO make additional class for optimizer report
-
-  prepareDataToOptimizer = async (): ChartDataReportBlock => {
+  //TODO make additional class for full report
+  prepareDataToFullReport = async (): ChartDataReportBlock => {
     if (!this.lines['max_Profit']) {
       error('ReportChart::prepareDataToOptimize', 'No profit line in chart', { lines: Object.keys(this.lines) });
       return [];

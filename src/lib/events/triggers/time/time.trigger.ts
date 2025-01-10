@@ -47,6 +47,7 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
   }
 
   addTask(params: CreateTimeTaskParams): string {
+    //TODO validate callback it should be an arrow function
     const { triggerTime } = params;
 
     if (!validateNumbersInObject({ triggerTime: triggerTime })) {
@@ -97,6 +98,19 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
       await this.executeTask(task);
     }
 
+    this.recalculateMinTriggerTime();
+
+    if (!this.minTriggerTime) {
+      globals.events.unsubscribeById(this._eventListenerId);
+      this._eventListenerId = null;
+    }
+
+    this.clearInactive();
+
+    return { minTriggerTime: this.minTriggerTime, activeTasks: this.activeTasks.size };
+  }
+
+  recalculateMinTriggerTime() {
     const activeTasks = Array.from(this.activeTasks.values());
 
     this.minTriggerTime = activeTasks.reduce<number | null>((res, task) => {
@@ -108,17 +122,7 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
 
       return res;
     }, null);
-
-    if (!this.minTriggerTime) {
-      globals.events.unsubscribeById(this._eventListenerId);
-      this._eventListenerId = null;
-    }
-
-    this.clearInactive();
-
-    return { minTriggerTime: this.minTriggerTime, activeTasks: activeTasks.length };
   }
-
   private async executeTask(task: TimeTriggerTask) {
     if (!task.callback && !this._registeredHandlers.get(task.name)) {
       task.isActive = false;
@@ -188,6 +192,9 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
     this.inactiveTasks.set(taskId, task);
     this.activeTasks.delete(taskId);
     this.clearInactive();
+
+    this.recalculateMinTriggerTime();
+    log('TimeTrigger::cancelTask', 'Task canceled ' + taskId, { taskId, task });
   }
 
   getTasksByName(taskName: string): TriggerTask[] {
@@ -212,6 +219,7 @@ export class TimeTrigger extends Trigger implements TimeTrigger {
       this.activeTasks.delete(task.id);
     }
 
+    this.recalculateMinTriggerTime();
     this.clearInactive();
   }
 

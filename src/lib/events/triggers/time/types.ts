@@ -17,4 +17,5 @@ export interface CreateTimeTaskParams {
 export interface TimeTriggerTask extends TriggerTask {
   triggerTime: number;
   interval?: number;
+  comment?: string;
 }

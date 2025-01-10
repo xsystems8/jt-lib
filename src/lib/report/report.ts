@@ -16,14 +16,17 @@ import { AggType, ExtendedReportChartOptions } from './types';
 import { BufferIndicatorItem } from '../indicator/types';
 import { BaseError } from '../Errors';
 import { deleteObject } from '../utils/objects';
+import { getArgBoolean } from '../base';
 
 /**
  * Report - provide functionality for create report of trading strategy. Report can be viewed in web interface.
+ *
  * Widgets:
  * - Cards - show value of some variable
  * - Tables - show data in table
  * - Charts - show chart with lines
- * - TradingView charts - show chart with indicators and shapes
+ * - Text - show text in report
+ *
  *
  *  @note: for tester report should be updated in OnStop() function when script is finished.
  *  @note: for real trading report could be updated by time interval. But it is not recommended to update report too often.
@@ -60,13 +63,19 @@ export class Report extends BaseObject {
   isLogToReport = true;
 
   lastTimeUpdate = 0;
-  chartCoinsBasket = new ReportChart('Coins Basket', { chartType: ChartType.Line, aggPeriod: 24 * 60 * 60 * 1000 }); // 4 hours
+  fullReportChart = new ReportChart('fullReportChart', { chartType: ChartType.Line, aggPeriod: 24 * 60 * 60 * 1000 }); // 4 hours
   constructor(args) {
     super(args);
   }
 
   setLayoutIndex(type: LayoutInfoObjType, name: string, index: number = undefined) {
-    if (!index) index = this._layoutIterator = this._layoutIterator + 100;
+    const key = type + '-' + name;
+    if (!index && this._layoutIndexes[key]) {
+      return;
+    }
+    if (!index) {
+      index = this._layoutIterator = this._layoutIterator + 100;
+    }
 
     if (!this._layoutIAllowedTypes.includes(type)) {
       throw new BaseError('Report::setLayoutIndex: type should be table, chart, text or tvChart', {
@@ -82,7 +91,6 @@ export class Report extends BaseObject {
       index,
     };
 
-    const key = type + '-' + name;
     this._layoutIndexes[key] = objInfo;
   }
 
@@ -100,6 +108,7 @@ export class Report extends BaseObject {
       symbol: '',
       blocks: [],
     };
+
     let objNotExists = [];
     //sort by index
     try {
@@ -162,6 +171,7 @@ export class Report extends BaseObject {
 
       if (this.isLogToReport) {
         let logs = getLogs('error');
+
         if (logs.length > 0) {
           reportData.blocks.push({
             type: 'table',
@@ -224,9 +234,19 @@ export class Report extends BaseObject {
           data: opResults,
         });
 
-        if (args['isChartOptimazer']) {
-          reportData.blocks.push(await this.chartCoinsBasket.prepareDataToOptimizer());
+        if (getArgBoolean('isMultiSymbols', false)) {
+          reportData.blocks.push(await this.fullReportChart.prepareDataToFullReport());
         }
+        // reportData.blocks.push({
+        //   type: 'optimizer_coins_basket',
+        //   name: 'dfvhufv',
+        //   isVisible: true,
+        //   workingBalance: 1000,
+        //   volumeUsd: 33,
+        //   ordersCount: 33,
+        //   profitChart: this.optimizerChartData,
+        //   data: {},
+        // });
       }
     } catch (e) {
       error(e);
@@ -237,12 +257,16 @@ export class Report extends BaseObject {
       objNotExists: objNotExists,
     });
     await updateReport(reportData);
+    return reportData;
   }
 
   setTitle(title: string) {
     this.title = title;
   }
 
+  getTitle() {
+    return this.title;
+  }
   /**
    * Set description for report
    * @param description - description of report
@@ -311,6 +335,16 @@ export class Report extends BaseObject {
     return undefined;
   }
 
+  createActionButton(title: string, action: string, value: string, layoutIndex: number = undefined) {
+    if (this.actionButtons[title]) return;
+
+    this.actionButtons[title] = new ReportActionButton(title, action, value);
+
+    if (this.isSetLayoutIndexByDefault) {
+      this.setLayoutIndex('actionButton', title, layoutIndex);
+    }
+  }
+
   createOptimizedCard(cardName: string, cardOptions?: ReportCardParams) {
     if (this.optimizedValues[cardName]) return;
 
@@ -327,7 +361,7 @@ export class Report extends BaseObject {
     this.optimizedValues[name].setValue(value, aggType);
   }
 
-  createCard(cardName: string, params?: ReportCardParams) {
+  createCard(cardName: string, params?: ReportCardParams, layoutIndex?: number) {
     if (this.cards[cardName]) return;
 
     if (!params) params = {};
@@ -336,7 +370,7 @@ export class Report extends BaseObject {
     this.cards[cardName] = new ReportCard(params);
 
     if (this.isSetLayoutIndexByDefault) {
-      this.setLayoutIndex('card', cardName);
+      this.setLayoutIndex('card', cardName, layoutIndex);
     }
   }
 
@@ -364,13 +398,13 @@ export class Report extends BaseObject {
     this.cards[cardName].setValue(value, aggType, params?.options);
   }
 
-  createText(textName: string, text: string, textOptions?: TextOptions) {
+  createText(textName: string, text: string, textOptions?: TextOptions, layoutIndex?: number) {
     if (this.texts[textName]) return;
 
     this.texts[textName] = new ReportText(text, textOptions?.variant, textOptions?.align);
 
     if (this.isSetLayoutIndexByDefault) {
-      this.setLayoutIndex('text', textName);
+      this.setLayoutIndex('text', textName, layoutIndex);
     }
   }
 
@@ -379,14 +413,16 @@ export class Report extends BaseObject {
     else this.texts[textName].setText(text);
   }
 
-  createTable(tableName: string) {
+  createTable(tableName: string, options?: any, layoutIndex?: number) {
     if (this.tables[tableName]) return;
 
     this.tables[tableName] = new ReportTable(tableName);
 
     if (this.isSetLayoutIndexByDefault) {
-      this.setLayoutIndex('table', tableName);
+      this.setLayoutIndex('table', tableName, layoutIndex);
     }
+
+    return this.tables[tableName];
   }
 
   tableUpdate(tableName: string, data: TableRow[] | TableRow, idField: string = 'id') {
@@ -401,13 +437,13 @@ export class Report extends BaseObject {
     }
   }
 
-  createChart(chartName: string, options?: ReportChartOptions) {
+  createChart(chartName: string, options?: ReportChartOptions, layoutIndex?: number) {
     if (this.charts[chartName]) return;
 
     this.charts[chartName] = new ReportChart(chartName, options);
 
     if (this.isSetLayoutIndexByDefault) {
-      this.setLayoutIndex('chart', chartName);
+      this.setLayoutIndex('chart', chartName, layoutIndex);
     }
   }
 
@@ -532,16 +568,6 @@ export class Report extends BaseObject {
     this.tvCharts[chartName].addOscillator({ name: oscillatorName, description, data });
   }
 
-  createActionButton(title: string, action: string, value: string) {
-    if (this.actionButtons[action]) return;
-
-    this.actionButtons[action] = new ReportActionButton(title, action, value);
-
-    if (this.isSetLayoutIndexByDefault) {
-      this.setLayoutIndex('actionButton', action);
-    }
-  }
-
   dropActionButton(action: string) {
     delete this.actionButtons[action];
 
@@ -555,6 +581,11 @@ export class Report extends BaseObject {
   }
   dropTable(tableName: string) {
     error('Report::dropTable', 'not use this -> use clear', tableName);
+    // if (this.tables[tableName]) {
+    //   this.tables[tableName].destroy();
+    //   delete this.tables[tableName];
+    // }
+
     this.deleteLayoutIndex('table', tableName);
   }
 
@@ -579,145 +610,159 @@ export class Report extends BaseObject {
   }
 
   async updateReport() {
-    this.lastTimeUpdate = Date.now();
+    try {
+      this.lastTimeUpdate = Date.now();
 
-    this._reportData = {
-      id: getArtifactsKey(),
-      symbol: this.symbol,
-      description: this.description,
-      blocks: [],
-    };
+      this._reportData = {
+        id: getArtifactsKey(),
+        symbol: this.symbol,
+        description: this.description,
+        blocks: [],
+      };
 
-    if (this.title) {
-      this._reportData.blocks.push(new ReportText(this.title, 'h1', 'center').prepareDataToReport());
-    }
-
-    if (this.description) {
-      this._reportData.blocks.push(new ReportText(this.description, 'subtitle1', 'center').prepareDataToReport());
-    }
-
-    //----------------CARDS
-    if (this.cards) {
-      for (let cardName in this.cards) {
-        try {
-          let cardInfo = this.cards[cardName].prepareDataToReport();
-          this._reportData.blocks.push(cardInfo);
-        } catch (e) {
-          error(e);
-        }
+      if (this.title) {
+        this._reportData.blocks.push(new ReportText(this.title, 'h1', 'center').prepareDataToReport());
       }
-    }
 
-    //----------------CHARTS
-    if (this.charts) {
-      for (let chartName in this.charts) {
-        try {
-          let chartInfo = this.charts[chartName].prepareDataToReport();
-          this._reportData.blocks.push(chartInfo);
-        } catch (e) {
-          error(e);
-        }
+      if (this.description) {
+        this._reportData.blocks.push(new ReportText(this.description, 'subtitle1', 'center').prepareDataToReport());
       }
-    }
 
-    //----------------TABLES
-    if (this.tables) {
-      for (let tableName in this.tables) {
-        try {
-          let tableInfo = this.tables[tableName].prepareDataToReport();
-          this._reportData.blocks.push(tableInfo);
-        } catch (e) {
-          error(e);
-        }
-      }
-    }
-
-    //----------------OPTIMIZED VALUES
-    if (this.optimizedValues) {
-      let opResults = {};
-
-      for (let valueName in this.optimizedValues) {
-        try {
-          let cardInfo = this.optimizedValues[valueName];
-          opResults[valueName] = cardInfo.getValue();
-        } catch (e) {
-          error(e);
+      //----------------CARDS
+      if (this.cards) {
+        for (let cardName in this.cards) {
+          try {
+            let cardInfo = this.cards[cardName].prepareDataToReport();
+            this._reportData.blocks.push(cardInfo);
+          } catch (e) {
+            error(e);
+          }
         }
       }
 
-      this._reportData.blocks.push({
-        type: 'optimizer_results',
-        name: 'Optimization results',
-        data: opResults,
-      });
-    }
+      //----------------CHARTS
+      if (this.charts) {
+        for (let chartName in this.charts) {
+          if (chartName === 'Optimizer profit') continue;
 
-    //----------------TRADING VIEW CHARTS
-    if (this.tvCharts) {
-      for (const chart in this.tvCharts) {
-        try {
-          const reportInfo = this.tvCharts[chart].prepareToReport();
-          this._reportData.blocks.push(reportInfo);
-        } catch (e) {
-          error(e);
+          try {
+            let chartInfo = this.charts[chartName].prepareDataToReport();
+            this._reportData.blocks.push(chartInfo);
+          } catch (e) {
+            error(e);
+          }
         }
       }
-    }
 
-    if (this.actionButtons) {
-      for (const button in this.actionButtons) {
-        try {
-          this._reportData.blocks.push(this.actionButtons[button].prepareDataToReport());
-        } catch (e) {
-          error(e);
+      //----------------TABLES
+      if (this.tables) {
+        for (let tableName in this.tables) {
+          try {
+            let tableInfo = this.tables[tableName].prepareDataToReport();
+            this._reportData.blocks.push(tableInfo);
+          } catch (e) {
+            error(e);
+          }
         }
       }
+
+      //----------------OPTIMIZED VALUES
+      if (this.optimizedValues) {
+        let opResults = {};
+
+        for (let valueName in this.optimizedValues) {
+          try {
+            let cardInfo = this.optimizedValues[valueName];
+            opResults[valueName] = cardInfo.getValue();
+          } catch (e) {
+            error(e);
+          }
+        }
+
+        this._reportData.blocks.push({
+          type: 'optimizer_results',
+          name: 'Optimization results',
+          data: opResults,
+        });
+      }
+
+      //----------------TRADING VIEW CHARTS
+      if (this.tvCharts) {
+        for (const chart in this.tvCharts) {
+          try {
+            const reportInfo = this.tvCharts[chart].prepareToReport();
+            this._reportData.blocks.push(reportInfo);
+          } catch (e) {
+            error(e);
+          }
+        }
+      }
+
+      if (this.actionButtons) {
+        for (const button in this.actionButtons) {
+          try {
+            this._reportData.blocks.push(this.actionButtons[button].prepareDataToReport());
+          } catch (e) {
+            error(e);
+          }
+        }
+      }
+
+      let logs = getLogs('error');
+      console.log('logs ' + logs.length, logs.slice(0, 1));
+      if (logs.length > 0) {
+        this._reportData.blocks.push({
+          type: 'table',
+          name: 'Warnings & Errors',
+          isVisible: true,
+          data: logs.slice(0, 100),
+        });
+      }
+
+      logs = getLogs('trace');
+      if (logs.length > 0) {
+        let to = Math.min(Math.round(logs.length / 2), 100);
+        this._reportData.blocks.push({
+          type: 'table',
+          name: 'Trace',
+          isVisible: true,
+          data: logs.slice(0, to).concat(logs.slice(-to)),
+        });
+      }
+
+      logs = getLogs('log');
+      if (logs.length > 0) {
+        let to = Math.min(Math.round(logs.length / 2), 100);
+
+        this._reportData.blocks.push({
+          type: 'table',
+          name: 'Log',
+          isVisible: true,
+          data: logs.slice(0, to).concat(logs.slice(-to)),
+        });
+      }
+
+      //LOG ONCE
+      logs = getLogs('logOnce');
+      if (logs.length > 0) {
+        this._reportData.blocks.push({
+          type: 'table',
+          name: 'LogOnce',
+          isVisible: true,
+          data: logs.slice(0, 200),
+        });
+      }
+
+      if (getArgBoolean('isMultiSymbols', false)) {
+        this._reportData.blocks.push(await this.fullReportChart.prepareDataToFullReport());
+      }
+    } catch (e) {
+      error(e);
+    } finally {
+      log('Report::updateReport', 'Report updated', { blocks: this._reportData.blocks.length }, true);
     }
 
-    let logs = getLogs('error');
-    if (logs.length > 0) {
-      this._reportData.blocks.push({
-        type: 'table',
-        name: 'Warnings & Errors',
-        isVisible: true,
-        data: logs.slice(0, 100),
-      });
-    }
-
-    logs = getLogs('trace');
-    if (logs.length > 0) {
-      let to = Math.min(Math.round(logs.length / 2), 100);
-      this._reportData.blocks.push({
-        type: 'table',
-        name: 'Trace',
-        isVisible: true,
-        data: logs.slice(0, to).concat(logs.slice(-to)),
-      });
-    }
-
-    logs = getLogs('log');
-    if (logs.length > 0) {
-      let to = Math.min(Math.round(logs.length / 2), 100);
-
-      this._reportData.blocks.push({
-        type: 'table',
-        name: 'Log',
-        isVisible: true,
-        data: logs.slice(0, to).concat(logs.slice(-to)),
-      });
-    }
-
-    //LOG ONCE
-    logs = getLogs('logOnce');
-    if (logs.length > 0) {
-      this._reportData.blocks.push({
-        type: 'table',
-        name: 'LogOnce',
-        isVisible: true,
-        data: logs.slice(0, 200),
-      });
-    }
-
+    // Full report data
     await updateReport(this._reportData);
   }
 }

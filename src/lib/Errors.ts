@@ -4,7 +4,6 @@ import { globals } from './globals';
 
 export class BaseError extends Error {
   allContext: any[] = [];
-
   internalStack: string[] = [];
   id: string;
 

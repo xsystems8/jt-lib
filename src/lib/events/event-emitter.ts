@@ -2,14 +2,15 @@ import { BaseObject } from '../base-object';
 import { EventListener, TickExecutionData } from './types';
 import { uniqueId } from '../base';
 import { BaseError } from '../Errors';
-import { error, log } from '../log';
+import { error, log, warning } from '../log';
 import { currentTimeString, timeCurrent } from '../utils/date-time';
 
 export class EventEmitter extends BaseObject {
   private readonly tickExecInterval = new Map<string, TickExecutionData>();
   private readonly _listeners = new Map<string, EventListener[]>();
+  private _listenersDict = new Map<string, boolean>();
 
-  private defaultTickInterval = 2000;
+  private defaultTickInterval = 1000;
 
   constructor(args: { idPrefix: string }) {
     super(args);
@@ -46,6 +47,8 @@ export class EventEmitter extends BaseObject {
    * @returns {string} - listener id (for unsubscribing by id)
    */
   subscribe(eventName: string, handler: (data?: any) => Promise<any>, owner: BaseObject): string {
+    //TODO EventEmitter::subscribe() - check if object subscribed twice to the same event with the same handler (it will be a memory leak and problems with unsubscribing)
+
     if (typeof handler !== 'function') {
       throw new BaseError('EventEmitter::subscribe() handler should be a function  ', { eventName });
     }
@@ -84,6 +87,18 @@ export class EventEmitter extends BaseObject {
       result: {},
     };
 
+    const uniqueKey = `${eventName}_${handler.name}_${owner.id}`;
+    if (this._listenersDict.has(uniqueKey)) {
+      warning('EventsEmitter:subscribe', `The owner ${owner.id} is already subscribed to the event ${eventName}`, {
+        uniqueKey,
+        listenerId: id,
+        eventName,
+        handlerName: handler.name,
+        ownerId: owner.id,
+      });
+    }
+    this._listenersDict.set(uniqueKey, true);
+
     listeners.push(listenerData);
 
     log('EventsEmitter:subscribe', `A handler for the ${eventName} event has been registered`, {
@@ -120,17 +135,26 @@ export class EventEmitter extends BaseObject {
 
     for (const listener of listeners) {
       try {
-        let result = await listener.handler(data);
-        listener.result = { result, updated: currentTimeString(), ownerId: listener.ownerId };
+        if (listener.owner?._isDestroyed === true) {
+          error('EventEmitter::emit()', ' The owner of the listener is destroyed', {
+            ...listener,
+            owner: undefined,
+            data,
+          });
+          listener.result = { error: 'The owner of the listener is destroyed', updated: currentTimeString() };
+        } else {
+          let result = await listener.handler(data);
+          listener.result = { result, updated: currentTimeString(), ownerId: listener.ownerId };
+        }
       } catch (e) {
-        error(e, { ...listener, owner: undefined, data });
+        error(e, {});
       }
     }
   }
 
-  setDefaultTickInterval(interval: number) {
-    interval = Math.max(1000, interval);
-    this.defaultTickInterval = interval;
+  setDefaultTickInterval(intervalMs: number) {
+    intervalMs = Math.max(1000, intervalMs);
+    this.defaultTickInterval = intervalMs;
   }
 
   getListenersCount() {
@@ -141,19 +165,28 @@ export class EventEmitter extends BaseObject {
     return Array.from(this._listeners.values()).flat();
   }
 
-  /**
-   * Unsubscribe from event by listener id
-   * @param listenerId - listener id
-   * @returns {boolean} - true if listener was found and unsubscribed
-   */
   unsubscribeById(listenerId: string): boolean {
+    //   const uniqueKey = `${eventName}_${handler.name}_${owner.id}`;
+    //     if (this._listenersDict.has(uniqueKey)) {
+    //       warning('EventsEmitter:subscribe', `The owner ${owner.id} is already subscribed to the event ${eventName}`, {
+    //         uniqueKey,
+    //         listenerId: id,
+    //         eventName,
+    //         handlerName: handler.name,
+    //         ownerId: owner.id,
+    //       });
+    //     }
+    //     this._listenersDict.set(uniqueKey, true);
     for (const [eventName, listeners] of this._listeners.entries()) {
-      for (let i = 0; i < listeners.length; i++) {
+      for (let i = listeners.length - 1; i >= 0; i--) {
         if (listeners[i].id !== listenerId) continue;
+        const uniqueKey = `${eventName}_${listeners[i].handlerName}_${listeners[i].ownerId}`;
+        const ownerId = listeners[i].ownerId;
 
         listeners.splice(i, 1);
 
-        log('EventsEmitter:unsubscribe', `Listener ${listenerId} unsubscribed from event ${eventName}`);
+        this._listenersDict.delete(uniqueKey);
+        log('EventsEmitter:unsubscribe', `Listener ${listenerId} unsubscribed from event ${eventName}`, { ownerId });
 
         return true;
       }
@@ -164,28 +197,31 @@ export class EventEmitter extends BaseObject {
     return false;
   }
 
-  /**
-   * Unsubscribe from event by object
-   * @param objectId - object id
-   * @returns {number} - count of unsubscribed _listeners
-   */
   unsubscribeByObjectId(objectId: string): number {
     let unsubscribedIds = 0;
 
+    let unsubscribedListeners = [];
+    let errorListeners = [];
     for (const [eventName, listeners] of this._listeners.entries()) {
-      for (let i = 0; i < listeners.length; i++) {
+      for (let i = listeners.length - 1; i >= 0; i--) {
         if (listeners[i].ownerId !== objectId) continue;
-        const listenerId = listeners[i].id;
-        listeners.splice(i, 1);
 
-        unsubscribedIds++;
+        let listenerInfo = { eventName: listeners[i].event, owner: listeners[i].ownerId, listenerId: listeners[i].id };
 
-        log('EventsEmitter:unsubscribeByObjectId', `Object ${objectId} unsubscribed from event ${eventName}`, {
-          listenerId,
-        });
+        if (this.unsubscribeById(listeners[i].id)) {
+          unsubscribedIds++;
+          unsubscribedListeners.push({ listenerInfo });
+        } else {
+          errorListeners.push({ listenerInfo });
+        }
       }
     }
 
+    log('EventsEmitter:unsubscribeByObjectId', `objectId ${objectId} `, {
+      unsubscribedIds,
+      unsubscribedListeners,
+      errorListeners,
+    });
     return unsubscribedIds;
   }
 }

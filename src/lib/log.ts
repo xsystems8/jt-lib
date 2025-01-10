@@ -1,23 +1,30 @@
 import { globals } from './globals';
 import { currentTime, currentTimeString } from './utils/date-time';
-import { getArgBoolean } from './base';
+import { getArgBoolean, getArgNumber } from './base';
 import { BaseError } from './Errors';
 
 const LOG_MAX_MESSAGES = 200;
+const MAX_CONSOLE_LOG = 500;
+const IS_DEBUG = getArgBoolean('isDebug', false);
+const IS_STRINGIFY = getArgBoolean('isStringifyLogs', true);
+const IS_NO_LOGS = getArgNumber('isNoLogs', 0); // 0 - logs are enabled, 1 - logs are disabled
+type LogType = 'log' | 'trace' | 'warning' | 'error' | 'debug';
 
 export function log(event: string, msg: string, context: Record<string, any> = {}, showInConsole = false) {
+  if (IS_NO_LOGS) return;
   _updateLog('log', event, msg, context, showInConsole);
 }
 
 export function trace(event: string, msg: string, context: Record<string, any> = {}, showInConsole = false) {
+  if (IS_NO_LOGS) return;
   _updateLog('trace', event, msg, context, showInConsole);
 }
 
 export function warning(event: string, msg: string, context: Record<string, any> = {}, showInConsole = false) {
+  if (IS_NO_LOGS) return;
   _updateLog('warning', '⚠️ ' + event, msg, { ...context, internalStack: new Error().stack.split('\n') }, true);
 }
 
-const IS_DEBUG = getArgBoolean('isDebug', false);
 export function debug(event: string, msg: string, context: Record<string, any> = {}) {
   //TODO check tester performance (debug() function increase time in 3 times)
   if (isTester()) return;
@@ -72,7 +79,7 @@ export function error(...args: any): void {
 
   globals.errorCount++;
   if (isTester()) {
-    if (globals.errorCount > 30) {
+    if (globals.errorCount > 20) {
       let errCnt = globals.errorCount;
       globals.errorCount = 0;
       globals.strategy.forceStop('Too many errors count=' + errCnt);
@@ -91,7 +98,7 @@ export function error(...args: any): void {
   }
 }
 
-export function getLogs(type: string) {
+export function getLogs(type: string): Record<string, any>[] {
   if (type === 'logOnce') {
     return Array.from(globals.logOnce.values());
   }
@@ -121,16 +128,6 @@ export function logOnce(event, msg, args = {}, ttl = 0) {
   globals.logOnce.set(event, { date: currentTimeString(), event, msg, args });
 }
 
-export function logOnceObj(event, msg, args = {}, ttl = 0) {
-  globals.logOnceObj[event] = { date: currentTimeString(), event, msg, args };
-}
-
-export function traceOnce(event, msg, args = {}, ttl = 0) {
-  if (!isMessageLogged(event, msg, ttl)) {
-    trace(event, msg, args);
-  }
-}
-
 export function errorOnce(event, msg, args = {}, ttl = 0) {
   if (!isMessageLogged(event, msg, ttl)) {
     error(event, msg, args);
@@ -145,14 +142,41 @@ export function warningOnce(event, msg, args = {}, ttl = 0) {
   }
 }
 
-type LogType = 'log' | 'trace' | 'warning' | 'error' | 'debug';
+function _updateLog(
+  type: LogType,
+  event: string,
+  msg: string,
+  context: Record<string, any> = {},
+  showInConsole = false,
+) {
+  if (showInConsole || type === 'error') {
+    const time = currentTimeString();
+    const consoleMsg = `${time}| ${event} ${msg} `;
+    const consoleContext = JSON.stringify(context, (key, v) => {
+      return v === undefined ? 'undefined' : v;
+    });
 
-const MAX_CONSOLE_LOG = 1000;
-function _updateLog(type: LogType, event: string, msg: string, args: Record<string, any> = {}, showInConsole = false) {
+    if (type === 'log') {
+      console.log(consoleMsg, consoleContext);
+    }
+    if (type === 'trace') {
+      console.log(consoleMsg, consoleContext);
+    }
+    if (type === 'warning') {
+      console.warn(consoleMsg, consoleContext);
+    }
+    if (type === 'debug') {
+      console.warn(consoleMsg, consoleContext);
+    }
+    if (type === 'error') {
+      console.error(consoleMsg, consoleContext);
+    }
+  }
+
+  if (type === 'warning') type = 'error';
   if (globals.logs[type] === undefined) {
     globals.logs[type] = [];
   }
-
   if (globals.logs[type].length > LOG_MAX_MESSAGES + 50) {
     globals.logs[type].slice(-LOG_MAX_MESSAGES);
   }
@@ -161,32 +185,19 @@ function _updateLog(type: LogType, event: string, msg: string, args: Record<stri
     globals.consoleLogCount++;
     if (globals.consoleLogCount > MAX_CONSOLE_LOG) {
       console.error('Too many console.log() calls. Max count = ' + MAX_CONSOLE_LOG);
+      //todo ADD reason argument to forceStop();
       forceStop();
     }
   }
-  const argsN = JSON.stringify(args);
 
-  globals.logs[type].push({ date: currentTimeString(), event: event, msg: msg, args: argsN });
-
-  if (showInConsole) {
-    if (type === 'log') {
-      console.log(event + ' | ' + msg, args);
-    }
-    if (type === 'trace') {
-      console.log(event + ' | ' + msg, args);
-    }
-
-    if (type === 'warning') {
-      console.warn(event + ' | ' + msg, args);
-    }
-
-    if (type === 'debug') {
-      console.warn(event + ' | ' + msg, args);
-    }
-  }
-
-  if (type === 'error') {
-    const time = currentTimeString();
-    console.error(`${event} at ${time} ${msg} `, args);
+  if (IS_STRINGIFY) {
+    const contextJson = JSON.stringify(context, (key, v) => {
+      return v === undefined ? 'undefined' : v;
+    });
+    globals.logs[type].push({ date: currentTimeString(), event: event, msg: msg, context: contextJson });
+  } else {
+    //if not stringify context inside context could be changed after log call it will be changed in logs
+    //because of reference to the same object in memory
+    globals.logs[type].push({ date: currentTimeString(), event: event, msg: msg, context: context });
   }
 }

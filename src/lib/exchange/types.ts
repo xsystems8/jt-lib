@@ -49,10 +49,12 @@ export interface ExchangeOrder {
 
 export type MarketInfoShort = {
   symbol: string;
+  close: number;
   buyContracts: number;
   buySizeUsd: number;
   BuyEntryPrice: number;
   sellContracts: number;
   sellSizeUsd: number;
   sellEntryPrice: number;
+  leverage: number;
 };

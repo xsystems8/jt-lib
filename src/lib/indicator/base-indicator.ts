@@ -8,6 +8,7 @@ export class BaseIndicator extends BaseObject {
   protected readonly timeframe: string;
   protected candlesBuffer: CandlesBuffer;
   protected buffer: BufferIndicatorItem[] = [];
+  notForDestroy = ['candlesBuffer'];
 
   constructor(symbol: string, timeframe: TimeFrame, buffer: CandlesBuffer) {
     super();
