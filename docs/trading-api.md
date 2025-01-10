@@ -7,6 +7,8 @@ This section documents the functions related to trading operations. These functi
   - [getPositions](#getPositions)
   - [getBalance](#getBalance)
   - [getOrders](#getOrders)
+  - [getOpenOrders](#getOpenOrders)
+  - [getClosedOrders](#getClosedOrders)
   - [getOrder](#getOrder)
   - [getProfit](#getProfit)
   - [createOrder](#createOrder)
@@ -60,7 +62,6 @@ getBalance(): Promise<Balance>
 
 
 ### [getOrders](#getOrders)
-
 Returns an array of orders for a specified symbol.
 
 ```typescript
@@ -78,7 +79,6 @@ getOrders(symbol: string, since: number, limit = 500): Promise<Order[]>
 ###### Example
 ```typescript
     const orders = await getOrders('ETH/USDT', 1703073753618, 100);
-    // do something
 ```
 
 <br>

@@ -1,59 +1,38 @@
-## Install JTL Environment
+## JT-LIB
 
-###  git & docker should be available on your system
-
-Debian/Ubuntu
-```bash
-sudo apt-get update
-sudo apt-get install git
-sudo apt-get install docker.io
-```
-Windows links to installer
-
-- https://git-scm.com/download/win
-- https://docs.docker.com/docker-for-windows/install/
+JT-Lib is a TypeScript library designed for writing trading robots for JT-Trader. It provides a simplified interface for interacting with exchanges and implementing trading strategies.
 
 
+## Setup environment
 
-### Run the following command to install the environment
-```bash
-curl -O https://raw.githubusercontent.com/xsystems8/jtl-infra-public/main/init.sh && chmod +x ./init.sh && ./init.sh
-```
+After your JT-LAB developer account is created. 
+Go to Servers page and find new server with type 'Mixed' on this server you can run and test your strategies.
+Click on server link and open JT-Trader
 
-Follow the instructions to install the environment.
+**Update JT-Lib.** Go to JT-Trader:code-editor and click 'Pull' button to update JT-Lib to the latest version.
 
-- Enter install directory - workingDir/jtl
-- Enter App public port  - 8080 (default)
+### Configure local environment
 
-go to workingDir/jtl
+To start developing trading strategies, you can use any code editor with ftp sync support. 
+Developing process is similar to developing web applications. You can write your code in your favorite code editor and then upload it to the server.
 
-```bash
-cd workingDir/jtl
-```
+Ftp credentials can be found in email you received after server creation.
 
-### Start the environment
+#### Configure WebStorm as an example:
 
-```bash
-./run_daemon.sh
-```
+1. Create a new folder for your project.
+2. Open this folder in WebStorm.
+3. Go to Tools -> Deployment -> Configuration -> add new SFTP server.
+4. Go to Tools -> Deployment -> Upload from Server
+5. Go to Tools -> Deployment -> Automatic Upload (optional if you want to upload files automatically)
 
-### Stop the environment
-
-```bash
-./stop_daemon.sh
-```
-
-Go to http://localhost:8080
+Now you can start developing your trading strategies.
 
 
-
-## JTL Docs
 ___
 * **Get Started**
-  - [Strategies](runtime.md)
-  - [Tester](tester.md)
-  - [Code Editor](code-ediitor.md)
-  - [Config](config.md)
+  - [Script Execution](https://docs.jt-lab.com/jt-lib/script-execution)
+  - [Best practice](https://docs.jt-lab.com/jt-lib/best-practice)
 
 
 * **Global API**
@@ -64,7 +43,7 @@ ___
 
 * **Lib Interfaces**
   - [BaseObject](base-object.md)
-  - [ExtendedScript](extended-script.md)
+  - [Script](extended-script.md)
   - [EventEmitter](event-emitter.md)
   - [Exchange](exchange.md)
   - [TriggerService](trigger-service.md)

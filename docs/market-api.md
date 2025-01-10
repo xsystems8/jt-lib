@@ -18,6 +18,7 @@ This section documents the functions related to market data in a trading platfor
 
 * **Interfaces**
   - [Symbol](#symbol)
+  - [Candle](#candle)
 
 ---
 
@@ -47,26 +48,19 @@ ___
 Returns an array of historical candle data.
 
 ```typescript
-getHistory(symbol: string, timeframe: string, startTime: number, limit?: number): Promise<number[][]>
+getHistory(timeframe: number, startTime: number, limit?: number): Promise<Candle[]>
 ```
 * **Parameters**
-  - `timeframe`: \<_string_> - Candle timeframe in minutes.
+  - `timeframe`: \<_number_> - Candle timeframe in minutes.
   - `startTime`: \<_number_> - Start time of the candles.
   - `limit`: \<_number_> - Number of candles to return.
 
 
-* **Returns:** _Promise<Array<[number, number, number, number, number, number]>>_ - An array of arrays, where each inner array contains the following elements: 
- 
-1. timestamp: \<_number_> - Timestamp of the candle.
-2. open: \<_number_> - Opening price of the candle.
-3. high: \<_number_> - Highest price during the candle.
-4. low: \<_number_> - Lowest price during the candle.
-5. close: \<_number_> - Closing price of the candle.
-6. volume: \<_number_> - Volume of trades during the candle.
+* **Returns:** _Promise<Array<[Candle](#candle)>>_.
 
 ###### Example
 ```typescript
-    const ohlc = await getHistory(1, 1703073753618, 100);
+    const candles = await getHistory(1, 1703073753618, 100);
 ```
 
 ___

@@ -19,60 +19,6 @@ A service for registering tasks by time.
 
 ## Methods
 
-### [registerHandler](#registerHandler)
-
-Registers a handler that will be called when the specified time is reached.
-
-> Handlers must be registered only in the constructor of the class where the trigger is used.
->> If you need to save tasks (state) after restarting the trading script using [Storage](../storage.md), then register handlers only through this method
-
-<br>
-
-```typescript
-registerHandler(taskName: string, handler: Function, owner: BaseObject): void
-```
-
-* **Parameters**
-  - `taskName`: \<_string_> - Task name.
-  - `handler`: \<_Function_> - A class method that will be called when an event occurs.
-  - `owner`: \<_[BaseObject](../base-object.md)_> - A reference to the object that contains the event handler. The object must extend from the _[BaseObject](../base-object.md)_ class.
-
-###### Example
-
-```typescript
-class SomeClass extends BaseObject {
-  private readonly timeTrigger: PriceTrigger;
-  
-  constructor() {
-    super();
-    
-    // ...some logic...
-    
-    this.timeTrigger = new TimeTrigger();
-    this.timeTrigger.registerHandler('onTimeReached', this.onTimeReached, this);
-  }
-  
-  async someMethod() {
-    // ...some logic...
-    
-    // Add a task that will call the handler (onTimeReached) when the specified time is reached
-    this.timeTrigger.addTask({
-      name: 'onTimeReached',
-      // the handler must be called no earlier than 10 seconds after the last tick.
-      triggerTime: tms() + 10000
-    })
-  }
-  
-  async onTimeReached() {
-    // ... do something ...   
-  }
-}
-```
-
-___
-
-<br>
-
 ### [addTask](#addTask)
 
 Register a callback that is called when the designated time is reached.
@@ -86,43 +32,6 @@ addTask(params: CreateTimeTaskParams): string
 
 
 * **Returns:** <_string_> - Task id.
-
-###### Example
-
-```typescript
-class SomeClass extends BaseObject {
-  private readonly timeTrigger: PriceTrigger;
-  
-  constructor() {
-    super();
-    
-    // ...some logic...
-    
-    this.timeTrigger = new TimeTrigger();
-    this.timeTrigger.registerHandler('onTimeReached', this.onTimeReached, this);
-  }
-  
-  async someMethod() {
-    // ...some logic...
-    
-    // Add a task that will call the handler (onTimeReached) when the specified time is reached
-    this.timeTrigger.addTask({
-      name: 'onTimeReached',
-      // the handler must be called no earlier than 10 seconds after the last tick.
-      triggerTime: tms() + 10000
-      
-      // only this callback will be called. The handler registered via the registerHandler method in the constructor will be ignored.
-      callback: async () => {
-        // ...do something...
-      }
-    })
-  }
-  
-  async onTimeReached() {
-    // ... do something ...   
-  }
-}
-```
 
 ___
 
@@ -208,7 +117,7 @@ ___
 interface CreateTimeTaskParams {
   name: string;
   triggerTime: number;
-  args?: any;
+  callbackArgs?: any;
   callback: (args?: any) => Promise<void>;
   retry?: boolean | number;
   interval?: number;
@@ -223,7 +132,7 @@ interface CreateTimeTaskParams {
 interface TimeTriggerTask {
   id: string;
   name: string;
-  args?: any;
+  callbackArgs?: any;
   callback: (args?: any) => Promise<void>;
   type: TaskType;
   executedTimes: number;

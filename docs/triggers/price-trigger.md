@@ -32,64 +32,9 @@ ___
 
 <br>
 
-### [registerHandler](#registerHandler)
-
-Registers a handler that will be called when the specified asset price is reached.
-
-> Handlers must be registered only in the constructor of the class where the trigger is used.
->> If you need to save tasks (state) after restarting the trading script using [Storage](../storage.md), then register handlers only through this method
-
-<br>
-
-```typescript
-registerHandler(taskName: string, handler: Function, owner: BaseObject): void
-```
-
-* **Parameters**
-  - `taskName`: \<_string_> - Task name.
-  - `handler`: \<_Function_> - A class method that will be called when an event occurs.
-  - `owner`: \<_[BaseObject](../base-object.md)_> - A reference to the object that contains the event handler. The object must extend from the _[BaseObject](../base-object.md)_ class.
-
-###### Example
-
-```typescript
-class SomeClass extends BaseObject {
-  private readonly priceTrigger: PriceTrigger;
-  
-  constructor() {
-    super();
-    
-    this.priceTrigger = new PriceTrigger('BTC/USDT');
-    this.priceTrigger.registerHandler('onPriceReached', this.onPriceReached, this);
-  }
-  
-  async someMethod() {
-    // ...some logic...
-    
-    // Add a task that will call the handler (onPriceReached) when a certain asset price is reached
-    this.priceTrigger.addTask({
-      name: 'onPriceReached',
-      triggerPrice: 62500
-    })
-  }
-  
-  async onPriceReached() {
-    // ... do something ...   
-  }
-}
-```
-
-___
-
-<br>
-
 ### [addTask](#addTask)
 
 Register a callback that will be called when the specified asset price is reached.
-
-> If a handler is registered via the [registerHandler](#registerhandler) method and a callback was passed in the parameters when adding a task, then only the callback will be called when an event occurs.
-
-<br>
 
 ```typescript
 addTask(params: CreatePriceTaskParams): string
@@ -100,41 +45,6 @@ addTask(params: CreatePriceTaskParams): string
 
 
 * **Returns:** <_string_> - Task id.
-
-###### Example
-
-```typescript
-class SomeClass extends BaseObject {
-  private readonly priceTrigger: PriceTrigger;
-  
-  constructor() {
-    super();
-
-    // ...some logic...
-    
-    this.priceTrigger = new PriceTrigger('BTC/USDT');
-    this.priceTrigger.registerHandler('onPriceReached', this.onPriceReached, this);
-  }
-  
-  async someMethod() {
-    // ...some logic...
-    
-    // Add a task that will call the handler (onPriceReached) when a certain asset price is reached
-    this.priceTrigger.addTask({
-      name: 'onPriceReached',
-      triggerPrice: 62500,
-      // only this callback will be called. The handler registered via the registerHandler method in the constructor will be ignored.
-      callback: async () => {
-        // ... do something ...
-      }
-    })
-  }
-  
-  async onPriceReached() {
-    // ... do something ...   
-  }
-}
-```
 
 ___
 
@@ -220,7 +130,7 @@ ___
 interface CreatePriceTaskParams {
   name: string;
   triggerTime: number;
-  args?: any;
+  callbackArgs?: any;
   callback: (args?: any) => Promise<void>;
   retry?: boolean | number;
   interval?: number;
@@ -235,7 +145,7 @@ interface CreatePriceTaskParams {
 interface PriceTriggerTask {
   id: string;
   name: string;
-  args?: any;
+  callbackArgs?: any;
   callback: (args?: any) => Promise<void>;
   type: TaskType;
   executedTimes: number;

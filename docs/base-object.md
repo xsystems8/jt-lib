@@ -1,8 +1,8 @@
 # BaseObject
 ___
 
-It is advisable to inherit all classes created from the BaseObject class. 
-This will allow you to attach an event listener to the object. 
+It is advisable to inherit all classes created from the BaseObject class.
+This will allow you to attach an event listener to the object.
 > Note: You can remove all event listeners from an object by calling the `unsubscribe()` method.
 
 ###### Example
@@ -23,7 +23,7 @@ class TradeVolume extends BaseObject {
       this.volumeUsd += order.amount * order.price; // volume in USDT
     }
   };
-  
+
   customEventHandler = () => {
     // ...
   }

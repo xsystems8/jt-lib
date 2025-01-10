@@ -21,8 +21,6 @@ ___
   - [sellLimit](#sellLimit)
   - [getContractsAmount](#getContractsAmount)
   - [getUsdAmount](#getUsdAmount)
-  - [getPositions](#getPositions)
-  - [getPositionBySide](#getPositionBySide)
   - [ask](#ask)
   - [askVolume](#askVolume)
   - [bid](#bid)
@@ -409,44 +407,6 @@ getUsdAmount(contractsAmount: number, executionPrice?: number): number
 
 
 * **Returns:** _number_.
-
-###### Example
-```typescript
-const exchange = new Exchange({ symbol: 'ETH/USDT', exchange: 'binance', hedgeMode: true });
-const usdSize = exchange.getUsdAmount(10);
-```
-
-___
-
-<br>
-
-## [getPositions](#getPositions)
-
-Returns open positions.
-
-```typescript
-getPositions(): Promise<Position[]>
-```
-
-* **Returns:** _Promise\<Array<[Position](trading-api.md#position)>>_.
-
-___
-
-<br>
-
-## [getPositionBySide](#getPositionBySide)
-
-Returns position by side (long/short).
-
-```typescript
-getPositionBySide(side: 'long' | 'short' | 'buy' | 'sell'): Promise<Position>
-```
-
-* **Parameters**
-  - `side`: \<_string_> - Position side.
-
-
-* **Returns:** _Promise\<[Position](trading-api.md#position)>_.
 
 ###### Example
 ```typescript
